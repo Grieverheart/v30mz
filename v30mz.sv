@@ -64,7 +64,7 @@
 // I would like to try both methods and see what the differences are in both
 // efficiency and code/logic simplicity.
 
-module v30mz_disassembler
+module v30mz
 (
     input clk,
     input reset,
@@ -85,11 +85,13 @@ module v30mz_disassembler
 );
 
     localparam [2:0]
-        state_opcode_read = 3'd0,
-        state_modrm_read  = 3'd1,
-        state_disp_read   = 3'd2,
-        state_imm_read    = 3'd3,
-        state_execute     = 3'd4;
+        state_opcode_read    = 3'd0,
+        state_modrm_read     = 3'd1,
+        state_disp_read_low  = 3'd2,
+        state_disp_read_high = 3'd3,
+        state_imm_read_low   = 3'd4,
+        state_imm_read_high  = 3'd5,
+        state_execute        = 3'd6;
 
     // General purpose registers
     // There are four 16-bit registers. These can be not only used
@@ -135,6 +137,8 @@ module v30mz_disassembler
     reg [1:0] reset_counter;
 
     wire [15:0] PFP;
+    // @todo: Should multiplex this depending on the type of read or write
+    // that's being made.
     assign address_out = (reset_counter == 0)? 20'hfffff: {PS, 4'd0} + {4'd0, PFP};
     assign pop_queue = !reset && (state != state_execute) && !queue_empty;
 
@@ -154,6 +158,8 @@ module v30mz_disassembler
 
     reg [7:0] opcode;
     reg [7:0] modrm;
+    reg [15:0] immediate;
+    reg [15:0] displacement;
     wire has_prefix;
     wire need_modrm;
     wire need_disp;
@@ -166,8 +172,12 @@ module v30mz_disassembler
     always_latch
     begin
         // @todo: check prefix.
-        if(state == state_opcode_read)     opcode = prefetch_data;
-        else if(state == state_modrm_read) modrm  = prefetch_data;
+        if(state == state_opcode_read)         opcode             = prefetch_data;
+        else if(state == state_modrm_read)     modrm              = prefetch_data;
+        else if(state == state_disp_read_low)  displacement[7:0]  = prefetch_data;
+        else if(state == state_disp_read_high) displacement[15:8] = prefetch_data;
+        else if(state == state_imm_read_low)   immediate[7:0]     = prefetch_data;
+        else if(state == state_imm_read_high)  immediate[15:8]    = prefetch_data;
     end
 
     // It also makes it easier at initialization, as the opcode takes the
@@ -186,26 +196,54 @@ module v30mz_disassembler
         .need_imm(need_imm),
         .imm_size(imm_size),
 
+        //.microprogram_address(),
+
         .src(src),
         .dst(dst)
     );
 
+    //microsequencer microsequencer_inst
+    //(
+    //    .clk(clk),
+    //    .address(microprogram_address),
+    //    .src(src),
+    //    .dst(dst),
+    //    .modrm(modrm),
+    //    .imm(immediate),
+    //    //.registers(...),
+    //    .instruction_end(instruction_end),
+    //    .bus_commands()//?
+    //);
+
     wire [2:0] next_state;
 
+    // @todo: In principle, we should be able to overlap execution with next
+    // opcode read if the last microcode is not a read/write operation.
+    // Perhaps we can change state_opcode_read to being a wire opcode_read
+    // which can be turned on.
     assign next_state =
         (state == state_opcode_read) ?
             (need_modrm ? state_modrm_read:
-            (need_disp  ? state_disp_read:
-            (need_imm   ? state_imm_read:
-                          state_opcode_read))):
+            (need_disp  ? state_disp_read_low:
+            (need_imm   ? state_imm_read_low:
+                          state_opcode_execute))):
         (state == state_modrm_read) ?
-            (need_disp  ? state_disp_read:
-            (need_imm   ? state_imm_read:
-                          state_opcode_read)):
-        (state == state_disp_read) ?
-            (need_imm   ? state_imm_read:
-                          state_opcode_read):
-                          state_opcode_read;
+            (need_disp  ? state_disp_read_low:
+            (need_imm   ? state_imm_read_low:
+                          state_opcode_execute)):
+        (state == state_disp_read_low) ?
+            (disp_size  ? state_disp_read_high:
+            (need_imm   ? state_imm_read_low:
+                          state_opcode_execute)):
+        (state == state_disp_read_high) ?
+            (need_imm   ? state_imm_read_low:
+                          state_opcode_execute):
+        (state == state_imm_read_low) ?
+            (imm_size   ? state_imm_read_high:
+                          state_execute):
+        instruction_end ? state_opcode_read: state_execute;
+
+    reg [4:0] alu_op;
 
     reg reset_initiated;
     always_ff @ (posedge clk)
@@ -291,6 +329,11 @@ module v30mz_disassembler
                         state <= next_state;
                     end
 
+                end
+
+                state_execute:
+                begin
+                    state <= next_state;
                 end
 
                 default: state <= next_state;
