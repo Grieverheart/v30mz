@@ -1,3 +1,4 @@
 .DS_store
 *.swp
 verilator/obj_dir
+*.vcd
