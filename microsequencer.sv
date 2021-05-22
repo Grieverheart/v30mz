@@ -1,3 +1,7 @@
+// @todo: Perhaps we need to move the instruction byte reading logic from
+// v30mz.sv to here. The register file is going to live here, which means also
+// the PC. It is this easier to be able to change it from a single place. This
+// module will then actually become the whole execution unit.
 
 module microsequencer
 (
@@ -5,14 +9,22 @@ module microsequencer
     input reset,
     input [7:0] opcode,
 
-    input [3:0] src,
-    input [3:0] dst,
+    input [3:0] src_operand,
+    input [3:0] dst_operand,
 
     input [1:0] mod,
     input [2:0] rm,
 
     input [15:0] imm,
     input imm_size,
+
+    input [15:0] disp,
+    input disp_size,
+
+    // Effective address registers
+    input [3:0] ea_base_reg,
+    input [3:0] ea_index_reg,
+    input [1:0] ea_segment_reg,
 
     output reg [4:0] aluop,
     output reg instruction_done,
@@ -24,6 +36,11 @@ module microsequencer
     output reg [15:0] data_out,
     input [15:0] data_in,
     input bus_command_done
+
+    // Segment register input and output
+    // @todo: We need to be able to read and write to the segment registers.
+    // We know these take an additional cycle because they have to go to the
+    // BCU.
 );
     localparam [1:0]
         BUS_COMMAND_IDLE  = 2'd0,
@@ -37,18 +54,17 @@ module microsequencer
     // @todo: Initialize roms
     reg [8:0] translation_rom[0:255];
     reg [20:0] rom[0:511];
-    reg [3:0] read_dest;
 
     localparam [4:0]
-        micro_reg_none   = 5'h00,
-        micro_reg_r      = 5'h01,
-        micro_reg_rm     = 5'h02,
-        micro_reg_temp_a = 5'h03;
+        micro_mov_none   = 5'h00,
+        micro_mov_r      = 5'h01,
+        micro_mov_rm     = 5'h02,
+        micro_mov_imm    = 5'h03;
 
     initial
     begin
-        rom[0] = {1'b1, 7'd0, 3'b001, micro_reg_r, micro_reg_rm};
-        rom[1] = {1'b1, 7'd0, 3'b001, micro_reg_rm, micro_reg_r};
+        rom[0] = {1'b1, 7'd0, 3'b001, micro_mov_r, micro_mov_rm};
+        rom[1] = {1'b1, 7'd0, 3'b001, micro_mov_rm, micro_mov_r};
 
         for (int i = 0; i < 512; i++)
             rom[i] = 0;
@@ -60,6 +76,43 @@ module microsequencer
             translation_rom[{7'b1000101, i[0]}] = 9'd0; // mem -> reg
 
     end
+
+    reg register_we;
+    wire [2:0] register_write_id;
+    wire [1:0] register_write_part;
+    wire [15:0] register_write_data;
+    wire [15:0] registers[0:7];
+
+    // Latched mov info for performing mov on next posedge clk.
+    reg [2:0] mov_source_register;
+    reg [2:0] mov_destination_register;
+    reg       mov_from_memory;
+
+    assign register_write_id   = mov_destination_register;
+    assign register_write_data = mov_from_memory? data_in: registers[mov_source_register];
+    // @todo: assign register_write_part = ...;
+
+    register_file register_file_inst
+    (
+        .clk(clk),
+        .reset(reset),
+        .we(register_we),
+        .write_part(register_write_part),
+        .write_id(register_write_id),
+        .write_data(register_write_data),
+        .registers(registers)
+    );
+
+    wire [19:0] physical_address;
+    physical_address_calculator pac
+    (
+        .physical_address(physical_address),
+        .factors({ea_base_reg[3], ea_index_reg[3], &mod}),
+        .segment(registers[8 + {2'd0, ea_segment_reg}]),
+        .base(registers[ea_base_reg[2:0]]),
+        .index(registers[ea_index_reg[2:0]]),
+        .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
+    );
 
     // @todo: Make this smaller
     reg [3:0] microprogram_counter;
@@ -82,18 +135,12 @@ module microsequencer
     // 10:19; type, a, b
     // 20; next_last
 
-    // @todo:
-    reg [15:0] regfile[0:15];
-
     localparam
+        //STATE_DECODE_WAIT = 0,
         STATE_EXECUTE = 0,
-        STATE_WAIT    = 1;
+        STATE_RW_WAIT = 1;
 
-    always @ (bus_command_done)
-    begin
-        if(bus_command_done)
-            regfile[read_dest] = data_in;
-    end
+    reg state;
 
     always @ (posedge clk)
     begin
@@ -102,27 +149,36 @@ module microsequencer
             microprogram_counter    <= 0;
             instruction_done        <= 0;
             instruction_nearly_done <= 0;
+            state                   <= STATE_EXECUTE;
         end
         else
         begin
             instruction_done        <= 0;
             instruction_nearly_done <= 0;
+            register_we             <= 0;
 
-            if(bus_command_done || bus_command == BUS_COMMAND_IDLE)
+            if(state == STATE_EXECUTE || bus_command_done)
             begin
                 microprogram_counter <= microprogram_counter + 1;
 
                 // Move command
-                if(reg_source == micro_reg_rm && mod != 2'b11)
+                if(reg_source == micro_mov_rm && mod != 2'b11)
                 begin
-                    // Read from memory
-                    bus_address <= 0;//...;
+                    // Source is memory, destination is register.
+                    bus_address <= physical_address;
                     bus_command <= BUS_COMMAND_READ;
-                    read_dest = dst;
+                    state       <= STATE_RW_WAIT;
+
+                    // @important: If the bus command is not done, it is
+                    // important to keep 'register_we = 1'
+
+                    mov_destination_register <= dst_operand[2:0];
+                    mov_from_memory          <= 1;
+                    register_we              <= 1;
                 end
-                else if(reg_source == micro_reg_rm || reg_source == micro_reg_r)
+                else if(reg_source == micro_mov_rm || reg_source == micro_mov_r)
                 begin
-                    regfile[dst] <= regfile[src];
+                    // Source is register.
                 end
                 else
                 begin
@@ -164,9 +220,7 @@ module microsequencer
                     end
 
                 endcase
-
             end
-                
         end
     end
 

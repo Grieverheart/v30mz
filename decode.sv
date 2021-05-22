@@ -43,8 +43,14 @@ module decode
     output reg need_imm,
     output reg imm_size,  // 0 -> 8bit, 1 -> 16bit
 
+    // Source and destination operand registers
     output reg [3:0] src,
-    output reg [3:0] dst
+    output reg [3:0] dst,
+
+    // Effective address registers
+    output [3:0] base,
+    output [3:0] index,
+    output [1:0] seg
 );
 
     wire need_disp_mod, disp_size_mod;
@@ -63,9 +69,62 @@ module decode
     assign need_disp_mod = (rm == 3'b110 && mod == 0) || ^mod;
     assign disp_size_mod = (rm == 3'b110 && mod == 0)? 1: mod[1];
 
-    // @todo: Handle modrm assignment of correct base pointer and index
-    // registers as well as the correct default segment, unless a prefix is
-    // present.
+    // Assign the base, index and segment registers.
+    // @note: The high bit of the base and index registers is set when the
+    // register is not used in the effective address calculation.
+    always_comb
+    begin
+        case (rm)
+            3'b000:
+            begin
+                base  = 4'b0011;
+                index = 4'b0110;
+                seg   = 2'b11;
+            end
+            3'b001:
+            begin
+                base  = 4'b0011;
+                index = 4'b0111;
+                seg   = 2'b11;
+            end
+            3'b010:
+            begin
+                base  = 4'b0101;
+                index = 4'b0110;
+                seg   = 2'b10;
+            end
+            3'b011:
+            begin
+                base  = 4'b0101;
+                index = 4'b0111;
+                seg   = 2'b10;
+            end
+            3'b100:
+            begin
+                base  = 4'b1100;
+                index = 4'b0110;
+                seg   = 2'b11;
+            end
+            3'b101:
+            begin
+                base  = 4'b1100;
+                index = 4'b0111;
+                seg   = 2'b11;
+            end
+            3'b110:
+            begin
+                base  = (mod != 0) ? 4'b0101 : 4'b1100;
+                index = 4'b1100;
+                seg   = (mod != 0) ? 2'b10 : 2'b11;
+            end
+            3'b111:
+            begin
+                base  = 4'b0011;
+                index = 4'b1100;
+                seg   = 2'b11;
+            end
+        endcase
+    end
 
     /* verilator lint_off COMBDLY  */
     always_comb

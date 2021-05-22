@@ -7,6 +7,10 @@ module prefetch_queue
     input push,
     input [15:0] data_in,
 
+    // @todo: Add arguments for writing PFP, i.e. to set it to a new location
+    // after a jump. In this case, the queue should also be flushed so we need
+    // to set write_idx <= 0.
+
     output reg [15:0] PFP,
     output [7:0] data_out,
     output empty,

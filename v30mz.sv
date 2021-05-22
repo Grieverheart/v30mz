@@ -168,6 +168,9 @@ module v30mz
     wire disp_size;
     wire [3:0] src;
     wire [3:0] dst;
+    wire [3:0] ea_base_reg;
+    wire [3:0] ea_index_reg;
+    wire [1:0] ea_segment_reg;
 
     always_latch
     begin
@@ -199,8 +202,14 @@ module v30mz
         //.microprogram_address(),
 
         .src(src),
-        .dst(dst)
+        .dst(dst),
+
+        .base(ea_base_reg),
+        .index(ea_index_reg),
+        .seg(ea_segment_reg)
     );
+
+    wire instruction_end;
 
     //microsequencer microsequencer_inst
     //(
@@ -226,18 +235,18 @@ module v30mz
             (need_modrm ? state_modrm_read:
             (need_disp  ? state_disp_read_low:
             (need_imm   ? state_imm_read_low:
-                          state_opcode_execute))):
+                          state_execute))):
         (state == state_modrm_read) ?
             (need_disp  ? state_disp_read_low:
             (need_imm   ? state_imm_read_low:
-                          state_opcode_execute)):
+                          state_execute)):
         (state == state_disp_read_low) ?
             (disp_size  ? state_disp_read_high:
             (need_imm   ? state_imm_read_low:
-                          state_opcode_execute)):
+                          state_execute)):
         (state == state_disp_read_high) ?
             (need_imm   ? state_imm_read_low:
-                          state_opcode_execute):
+                          state_execute):
         (state == state_imm_read_low) ?
             (imm_size   ? state_imm_read_high:
                           state_execute):
