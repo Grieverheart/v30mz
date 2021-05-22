@@ -93,13 +93,6 @@ module v30mz
         state_imm_read_high  = 3'd5,
         state_execute        = 3'd6;
 
-    // General purpose registers
-    // There are four 16-bit registers. These can be not only used
-    // as 16-bit registers, but also accessed as 8-bit registers
-    // (AH, AL, BH, BL, CH, CL, DH, DL) by dividing each register
-    // into the higher 8 bits and the lower 8 bits.
-    reg [15:0] AW, BW, CW, DW;
-
     // Segment registers
     // The V30MZ can divide the memory space into logical segments
     // in 64 K-byte units and control up to 4 segments
@@ -108,11 +101,6 @@ module v30mz
     // start address of each segment is specified by the following
     // 4 segment registers.
     reg [15:0] PS, SS, DS0, DS1;
-
-    // Pointer
-    // The pointer consists of two 16-bit registers (stack pointer
-    // (SP) and base pointer (BP)).
-    reg [15:0] SP, BP;
 
     // Program counter
     // The PC is a 16-bit binary counter that holds the offset
@@ -126,19 +114,11 @@ module v30mz
     // @todo: Probably easier to separate flags.
     reg [15:0] PSW;
 
-    // Index registers
-    // This consists of two 16-bit registers (IX, IY). In a
-    // memory data reference, it is used as an index register to
-    // generate effective addresses (each register can also be
-    // referenced in an instruction).
-    reg [15:0] IX, IY;
-
-
-    reg [1:0] reset_counter;
-
     wire [15:0] PFP;
+
     // @todo: Should multiplex this depending on the type of read or write
     // that's being made.
+    reg [1:0] reset_counter;
     assign address_out = (reset_counter == 0)? 20'hfffff: {PS, 4'd0} + {4'd0, PFP};
     assign pop_queue = !reset && (state != state_execute) && !queue_empty;
 

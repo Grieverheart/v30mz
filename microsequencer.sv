@@ -92,6 +92,24 @@ module microsequencer
     assign register_write_data = mov_from_memory? data_in: registers[mov_source_register];
     // @todo: assign register_write_part = ...;
 
+    // The register file holds the following registers
+    //
+    // * General purpose registers (AW, BW, CW, DW)
+    //   There are four 16-bit registers. These can be not only used
+    //   as 16-bit registers, but also accessed as 8-bit registers
+    //   (AH, AL, BH, BL, CH, CL, DH, DL) by dividing each register
+    //   into the higher 8 bits and the lower 8 bits.
+    //
+    // * Pointer registers (SP, BP)
+    //   The pointer consists of two 16-bit registers (stack pointer
+    //   (SP) and base pointer (BP)).
+    //
+    // * Index registers (IX, IY)
+    //   This consists of two 16-bit registers (IX, IY). In a
+    //   memory data reference, it is used as an index register to
+    //   generate effective addresses (each register can also be
+    //   referenced in an instruction).
+
     register_file register_file_inst
     (
         .clk(clk),
@@ -155,22 +173,22 @@ module microsequencer
         begin
             instruction_done        <= 0;
             instruction_nearly_done <= 0;
-            register_we             <= 0;
 
             if(state == STATE_EXECUTE || bus_command_done)
             begin
+                // @important: If the bus command is not done, it is
+                // important to keep 'register_we = 1' so that the register
+                // eventually gets written to when the data is ready.
+                register_we          <= 0;
                 microprogram_counter <= microprogram_counter + 1;
 
-                // Move command
+                // Handle move command
                 if(reg_source == micro_mov_rm && mod != 2'b11)
                 begin
                     // Source is memory, destination is register.
                     bus_address <= physical_address;
                     bus_command <= BUS_COMMAND_READ;
                     state       <= STATE_RW_WAIT;
-
-                    // @important: If the bus command is not done, it is
-                    // important to keep 'register_we = 1'
 
                     mov_destination_register <= dst_operand[2:0];
                     mov_from_memory          <= 1;
@@ -184,7 +202,7 @@ module microsequencer
                 begin
                 end
 
-                // Other commands
+                // Handle other commands
                 case(micro_op[9:7])
 
                     // short jump

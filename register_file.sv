@@ -1,13 +1,16 @@
 module register_file
+#(
+    parameter NUM_REGISTERS=8
+)
 (
     input clk,
     input reset,
     input we,
     input [1:0] write_part,
-    input [2:0] write_id,
+    input [$clog2(NUM_REGISTERS)-1:0] write_id,
     input [15:0] write_data,
 
-    output reg [15:0] registers[0:7]
+    output reg [15:0] registers[0:NUM_REGISTERS-1]
 );
 
     always @(posedge clk)
