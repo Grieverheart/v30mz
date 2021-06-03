@@ -25,6 +25,7 @@ int main(int argc, char** argv, char** env)
     microsequencer->opcode = 0x8b;
     microsequencer->mod = 0;
     microsequencer->rm = 2;
+    microsequencer->dst_operand = 0x2;
 
     // Effective address registers
     microsequencer->ea_base_reg    = 0x5;
@@ -53,7 +54,7 @@ int main(int argc, char** argv, char** env)
         // BUS_COMMAND_READ
         if(microsequencer->bus_command == 1)
         {
-            microsequencer->data_in = 0x6666;
+            microsequencer->data_in = (timestamp < 10)? 0x6666: 0x9999;
             microsequencer->bus_command_done = 1;
             data_sent = true;
         }

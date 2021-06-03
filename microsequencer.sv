@@ -1,6 +1,6 @@
 // @todo: Perhaps we need to move the instruction byte reading logic from
 // v30mz.sv to here. The register file is going to live here, which means also
-// the PC. It is this easier to be able to change it from a single place. This
+// the PC. It is then easier to be able to change it from a single place. This
 // module will then actually become the whole execution unit.
 
 module microsequencer
@@ -25,6 +25,8 @@ module microsequencer
     input [3:0] ea_base_reg,
     input [3:0] ea_index_reg,
     input [1:0] ea_segment_reg,
+    // @todo: Perhaps we should have the decoder set the appropriate factors
+    // value for the physical address calculation.
 
     input [15:0] segment_registers[0:3],
 
@@ -59,22 +61,23 @@ module microsequencer
 
     localparam [4:0]
         micro_mov_none = 5'h00,
-        // register specified by opcode (r field of modrm).
+        // register specified by r field of modrm.
         micro_mov_r    = 5'h01,
-        // register or memory specified by opcode (e.g. rm field of modrm).
+        // register or memory specified by rm field of modrm.
         micro_mov_rm   = 5'h02,
-        // immediate value specified by opcode bytes.
+        // immediate value specified by opcode bytes. Cannot be destination.
         micro_mov_imm  = 5'h03,
+
         // all registers:
         micro_mov_al   = 5'h04,
-        micro_mov_cl   = 5'h05,
-        micro_mov_dl   = 5'h06,
-        micro_mov_bl   = 5'h07,
+        //micro_mov_cl   = 5'h05,
+        //micro_mov_dl   = 5'h06,
+        //micro_mov_bl   = 5'h07,
 
         micro_mov_ah   = 5'h08,
-        micro_mov_ch   = 5'h09,
-        micro_mov_dh   = 5'h0a,
-        micro_mov_bh   = 5'h0b,
+        //micro_mov_ch   = 5'h09,
+        //micro_mov_dh   = 5'h0a,
+        //micro_mov_bh   = 5'h0b,
 
         micro_mov_aw   = 5'h0c,
         micro_mov_cw   = 5'h0d,
@@ -90,6 +93,36 @@ module microsequencer
         micro_mov_cs   = 5'h15,
         micro_mov_ss   = 5'h16,
         micro_mov_ds   = 5'h17;
+
+        // @note: Still need these, I think:
+        //     micro_mov_psw  = 5'h18,
+        //     micro_mov_ea   = 5'h19,
+        //     micro_mov_pc   = 5'h1a,
+        //     micro_mov_alur = 5'h1b,
+        //     micro_mov_alux = 5'h1c,
+        //     micro_mov_aluy = 5'h1d,
+        //
+        // The 8086 microcode seems to even introduce some temporary registers
+        // and does not explicitly use the upper and lower half of the
+        // registers b, c, and d. In total, 26 values for src and 26 values
+        // for dst are used. The combined src and dst refer to a combined 33
+        // unique values, so a common coding for both is not possible with 5
+        // bits. I think it's best to encode the common ones, and for the
+        // others, introduce combination values, e.g. micro_mov_es_or_sigma.
+        // This brings the number of unique values to about 25. The move src
+        // never seems to refer to bw, and bp, though. If I add them to the
+        // common registers, it would increase them to 21. I could do the same
+        // with the 3 remaining segment registers, making the total of 24, and
+        // 5 dst and 4  src registers. With a total of 29 registers, we should
+        // be then fine. That's 2 short of the 31 total.
+        //
+        // Note that the 8086 microcode also includes references to microcode
+        // address registers, namely an address register, the microprogram
+        // count register, and the subroutine register. There is also a value
+        // for read byte from prefetch queue, which we'll not use in our design.
+        //
+        // It's also important to note that I don't know if the v30mz uses any
+        // of the b, c, and d lower and upper registers.
 
     initial
     begin
@@ -109,7 +142,6 @@ module microsequencer
 
     reg regfile_we;
     wire [2:0] regfile_write_id;
-    wire [1:0] regfile_write_part;
     wire [15:0] regfile_write_data;
     wire [15:0] regfile_write_data_temp;
     wire [15:0] registers[0:7];
@@ -117,34 +149,33 @@ module microsequencer
     // Latched mov info for performing mov on next posedge clk.
     reg [2:0] reg_src;
     reg [2:0] reg_dst;
+    // @important: mov_src_size and mov_dst_size should be the same!
     reg mov_src_size;
-    reg [1:0] reg_write_part;
+    reg mov_dst_size;
     reg [1:0] mov_from; // 0,3: reg, 1: mem, 2: imm
     // @todo: Maybe we should latch the imm value?
 
-    wire [15:0] reg_read = (mov_src_size == 0)? (
-        {8'd0, (reg_src[2] == 0)? registers[{1'd0, reg_src[1:0]}][7:0]:
-                                  registers[{1'd0, reg_src[1:0]}][15:8]}
-    ): registers[reg_src];
+    wire [15:0] reg_read = 
+         (mov_src_size == 1) ? registers[reg_src]:
+        ((reg_src[2]   == 0) ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
+                               {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]});
 
-    assign regfile_write_id = reg_dst;
-    assign regfile_write_data_temp =  (mov_from == 2'b01) ? data_in:
-                                     ((mov_from == 2'b10) ? imm:
-                                                            reg_read);
+    assign regfile_write_data_temp =
+         (mov_from == 2'b01) ? data_in:
+        ((mov_from == 2'b10) ? imm:
+                               reg_read);
 
-    assign regfile_write_data = (mov_src_size == 1) ? regfile_write_data_temp: {8'd0, regfile_write_data_temp[7:0]};
-    assign regfile_write_part = reg_write_part;
-
-    //// @refactor: Perhaps it's more legible with a combinatorial block.
-    //// @todo: Perhaps we need to also latch this.
-    //assign register_write_part =
-    //    (micro_mov_dst == micro_mov_r || micro_mov_dst == micro_mov_rm)?
-    //        ((dst_operand < 4'd4)? 2'b01:
-    //         (dst_operand < 4'd8)? 2'b10:
-    //                               2'b11):
-    //    ((micro_mov_dst >= micro_mov_al && micro_mov_dst < micro_mov_ah)?  2'b01:
-    //     ((micro_mov_dst >= micro_mov_ah && micro_mov_dst < micro_mov_aw)? 2'b10:
-    //                                                                       2'b11));
+    assign regfile_write_id = (mov_src_size == 1) ? reg_dst: {1'd0, reg_dst[1:0]};
+    assign regfile_write_data =
+         (mov_src_size == 1) ? regfile_write_data_temp:
+        ((reg_dst[2]   == 0) ? {
+                                   registers[regfile_write_id][15:8],
+                                   regfile_write_data_temp[7:0]
+                               }:
+                               {
+                                   regfile_write_data_temp[7:0],
+                                   registers[regfile_write_id][7:0]
+                               });
 
     // The register file holds the following registers
     //
@@ -169,7 +200,6 @@ module microsequencer
         .clk(clk),
         .reset(reset),
         .we(regfile_we),
-        .write_part(regfile_write_part),
         .write_id(regfile_write_id),
         .write_data(regfile_write_data),
         .registers(registers)
@@ -236,7 +266,7 @@ module microsequencer
                 // important to keep 'register_we = 1' so that the register
                 // eventually gets written to when the data is ready.
                 regfile_we           <= 0;
-                microprogram_counter <= microprogram_counter + 1;
+                microprogram_counter <= (micro_op[20] == 1) ? 0: microprogram_counter + 1;
 
                 // @note: We could also add combinational logic for reg_src,
                 // and reg_dst, and just latch here. Let's see what's
@@ -277,11 +307,13 @@ module microsequencer
                     // Source is register specified by micro_op.
                     if(micro_mov_src >= micro_mov_aw)
                     begin
+                        // Source is word register
                         reg_src <= {micro_mov_src[3], micro_mov_src[1:0]};
                         mov_src_size  <= 1;
                     end
                     else
                     begin
+                        // Source is byte register
                         reg_src <= micro_mov_src[2:0];
                         mov_src_size  <= 0;
                     end
@@ -289,8 +321,43 @@ module microsequencer
                     mov_from <= 2'b00;
                 end
 
+
                 // ** Handle move destination writing **
-                // @todo
+                if(micro_mov_dst == micro_mov_rm && mod != 2'b11)
+                begin
+                    // Destination is memory
+                    bus_address  <= physical_address;
+                    bus_command  <= BUS_COMMAND_WRITE;
+                    state        <= STATE_RW_WAIT;
+
+                    mov_dst_size <= opcode[0];
+                end
+                else if(micro_mov_dst == micro_mov_rm || micro_mov_dst == micro_mov_r)
+                begin
+                    // Destination is register specified by modrm.
+                    reg_dst      <= dst_operand[2:0];
+                    mov_dst_size <= opcode[0];
+                    regfile_we   <= 1;
+                end
+                else
+                begin
+                    // Destination is register specified by micro_op.
+                    regfile_we <= 1;
+
+                    if(micro_mov_dst >= micro_mov_aw)
+                    begin
+                        // Destination is word register
+                        reg_dst <= {micro_mov_dst[3], micro_mov_dst[1:0]};
+                        mov_dst_size <= 1;
+                    end
+                    else
+                    begin
+                        // Destination is byte register
+                        reg_dst <= micro_mov_dst[2:0];
+                        mov_dst_size <= 0;
+                    end
+
+                end
 
                 // Handle other commands
                 case(micro_op[12:10])
