@@ -84,15 +84,6 @@ module v30mz
     output pop_queue
 );
 
-    localparam [2:0]
-        state_opcode_read    = 3'd0,
-        state_modrm_read     = 3'd1,
-        state_disp_read_low  = 3'd2,
-        state_disp_read_high = 3'd3,
-        state_imm_read_low   = 3'd4,
-        state_imm_read_high  = 3'd5,
-        state_execute        = 3'd6;
-
     // Segment registers
     // The V30MZ can divide the memory space into logical segments
     // in 64 K-byte units and control up to 4 segments
@@ -135,104 +126,6 @@ module v30mz
         .empty(queue_empty),
         .full(queue_full)
     );
-
-    reg [7:0] opcode;
-    reg [7:0] modrm;
-    reg [15:0] immediate;
-    reg [15:0] displacement;
-    wire has_prefix;
-    wire need_modrm;
-    wire need_disp;
-    wire need_imm;
-    wire imm_size;
-    wire disp_size;
-    wire [3:0] src;
-    wire [3:0] dst;
-    wire [3:0] ea_base_reg;
-    wire [3:0] ea_index_reg;
-    wire [1:0] ea_segment_reg;
-
-    always_latch
-    begin
-        // @todo: check prefix.
-        if(state == state_opcode_read)         opcode             = prefetch_data;
-        else if(state == state_modrm_read)     modrm              = prefetch_data;
-        else if(state == state_disp_read_low)  displacement[7:0]  = prefetch_data;
-        else if(state == state_disp_read_high) displacement[15:8] = prefetch_data;
-        else if(state == state_imm_read_low)   immediate[7:0]     = prefetch_data;
-        else if(state == state_imm_read_high)  immediate[15:8]    = prefetch_data;
-    end
-
-    // It also makes it easier at initialization, as the opcode takes the
-    // value in prefetch_data, at least if it's not empty.
-
-    decode decode_inst
-    (
-        .opcode(opcode),
-        .modrm(modrm),
-
-        .need_modrm(need_modrm),
-
-        .need_disp(need_disp),
-        .disp_size(disp_size),
-
-        .need_imm(need_imm),
-        .imm_size(imm_size),
-
-        //.microprogram_address(),
-
-        .src(src),
-        .dst(dst),
-
-        .base(ea_base_reg),
-        .index(ea_index_reg),
-        .seg(ea_segment_reg)
-    );
-
-    wire instruction_end;
-
-    //microsequencer microsequencer_inst
-    //(
-    //    .clk(clk),
-    //    .address(microprogram_address),
-    //    .src(src),
-    //    .dst(dst),
-    //    .modrm(modrm),
-    //    .imm(immediate),
-    //    //.registers(...),
-    //    .instruction_end(instruction_end),
-    //    .bus_commands()//?
-    //);
-
-    wire [2:0] next_state;
-
-    // @todo: In principle, we should be able to overlap execution with next
-    // opcode read if the last microcode is not a read/write operation.
-    // Perhaps we can change state_opcode_read to being a wire opcode_read
-    // which can be turned on.
-    assign next_state =
-        (state == state_opcode_read) ?
-            (need_modrm ? state_modrm_read:
-            (need_disp  ? state_disp_read_low:
-            (need_imm   ? state_imm_read_low:
-                          state_execute))):
-        (state == state_modrm_read) ?
-            (need_disp  ? state_disp_read_low:
-            (need_imm   ? state_imm_read_low:
-                          state_execute)):
-        (state == state_disp_read_low) ?
-            (disp_size  ? state_disp_read_high:
-            (need_imm   ? state_imm_read_low:
-                          state_execute)):
-        (state == state_disp_read_high) ?
-            (need_imm   ? state_imm_read_low:
-                          state_execute):
-        (state == state_imm_read_low) ?
-            (imm_size   ? state_imm_read_high:
-                          state_execute):
-        instruction_end ? state_opcode_read: state_execute;
-
-    reg [4:0] alu_op;
 
     reg reset_initiated;
     always_ff @ (posedge clk)

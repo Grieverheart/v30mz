@@ -7,37 +7,29 @@ module microsequencer
 (
     input clk,
     input reset,
-    input [7:0] opcode,
-
-    input [3:0] src_operand,
-    input [3:0] dst_operand,
 
     input [1:0] mod,
     input [2:0] rm,
 
-    input [15:0] imm,
-    input imm_size,
-
-    input [15:0] disp,
-    input disp_size,
-
-    // Effective address registers
-    input [3:0] ea_base_reg,
-    input [3:0] ea_index_reg,
-    input [1:0] ea_segment_reg,
     // @todo: Perhaps we should have the decoder set the appropriate factors
     // value for the physical address calculation.
 
     input [15:0] segment_registers[0:3],
 
     output reg [4:0] aluop,
+
+    // @todo: Get these from micro_op.
     output reg instruction_done,
     output reg instruction_nearly_done,
+
+    // Prefetch queue
+    input [7:0] prefetch_data,
 
     // Bus
     output reg [1:0]  bus_command,
     output reg [19:0] bus_address,
     output reg [15:0] data_out,
+
     input [15:0] data_in,
     input bus_command_done
 
@@ -46,10 +38,106 @@ module microsequencer
     // We know these take an additional cycle because they have to go to the
     // BCU.
 );
+
+    localparam [2:0]
+        state_opcode_read    = 3'd0,
+        state_modrm_read     = 3'd1,
+        state_disp_read_low  = 3'd2,
+        state_disp_read_high = 3'd3,
+        state_imm_read_low   = 3'd4,
+        state_imm_read_high  = 3'd5,
+        state_execute        = 3'd6;
+
     localparam [1:0]
         BUS_COMMAND_IDLE  = 2'd0,
         BUS_COMMAND_READ  = 2'd1,
         BUS_COMMAND_WRITE = 2'd2;
+
+    reg [7:0] opcode;
+    reg [7:0] modrm;
+    reg [15:0] imm;
+    reg [15:0] disp;
+
+    wire has_prefix;
+    wire need_modrm;
+    wire need_disp;
+    wire need_imm;
+    wire imm_size;
+    wire disp_size;
+    wire [3:0] src;
+    wire [3:0] dst;
+
+    // Effective address registers
+    wire [3:0] ea_base_reg;
+    wire [3:0] ea_index_reg;
+    wire [1:0] ea_segment_reg;
+
+    wire [3:0] src_operand;
+    wire [3:0] dst_operand;
+
+    always_latch
+    begin
+        // @todo: check prefix.
+        if(state == state_opcode_read)         opcode     = prefetch_data;
+        else if(state == state_modrm_read)     modrm      = prefetch_data;
+        else if(state == state_disp_read_low)  disp[7:0]  = prefetch_data;
+        else if(state == state_disp_read_high) disp[15:8] = prefetch_data;
+        else if(state == state_imm_read_low)   imm[7:0]   = prefetch_data;
+        else if(state == state_imm_read_high)  imm[15:8]  = prefetch_data;
+    end
+
+    // It also makes it easier at initialization, as the opcode takes the
+    // value in prefetch_data, at least if it's not empty.
+
+    decode decode_inst
+    (
+        .opcode(opcode),
+        .modrm(modrm),
+
+        .need_modrm(need_modrm),
+
+        .need_disp(need_disp),
+        .disp_size(disp_size),
+
+        .need_imm(need_imm),
+        .imm_size(imm_size),
+
+        //.microprogram_address(),
+
+        .src(src_operand),
+        .dst(dst_operand),
+
+        .base(ea_base_reg),
+        .index(ea_index_reg),
+        .seg(ea_segment_reg)
+    );
+
+
+    // @todo: In principle, we should be able to overlap execution with next
+    // opcode read if the last microcode is not a read/write operation.
+    // Perhaps we can change state_opcode_read to being a wire opcode_read
+    // which can be turned on.
+    wire [2:0] next_state =
+        (state == state_opcode_read) ?
+            (need_modrm  ? state_modrm_read:
+            (need_disp   ? state_disp_read_low:
+            (need_imm    ? state_imm_read_low:
+                          state_execute))):
+        (state == state_modrm_read) ?
+            (need_disp   ? state_disp_read_low:
+            (need_imm    ? state_imm_read_low:
+                           state_execute)):
+        (state == state_disp_read_low) ?
+            (disp_size   ? state_disp_read_high:
+            (need_imm    ? state_imm_read_low:
+                           state_execute)):
+        (state == state_disp_read_high) ?
+            (need_imm    ? state_imm_read_low:
+                           state_execute):
+        (state == state_imm_read_low) ?
+            (imm_size    ? state_imm_read_high:
+                           state_execute):
+        instruction_done ? state_opcode_read: state_execute;
 
     // @info: The opcode is translated directly to a rom address. This can be done by
     //creating a rom of size 256 indexed by the opcode, where the value is
@@ -65,7 +153,7 @@ module microsequencer
         micro_mov_r    = 5'h01,
         // register or memory specified by rm field of modrm.
         micro_mov_rm   = 5'h02,
-        // immediate value specified by opcode bytes. Cannot be destination.
+        // imm value specified by opcode bytes. Cannot be destination.
         micro_mov_imm  = 5'h03,
 
         // all registers:
@@ -244,7 +332,7 @@ module microsequencer
 
     reg state;
 
-    always @ (posedge clk)
+    always_ff @ (posedge clk)
     begin
         if(reset)
         begin
