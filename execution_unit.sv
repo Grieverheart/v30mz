@@ -1,29 +1,23 @@
-// @todo: Perhaps we need to move the instruction byte reading logic from
-// v30mz.sv to here. The register file is going to live here, which means also
-// the PC. It is then easier to be able to change it from a single place. This
-// module will then actually become the whole execution unit.
 
-module microsequencer
+module execution_unit
 (
     input clk,
     input reset,
 
-    input [1:0] mod,
-    input [2:0] rm,
-
-    // @todo: Perhaps we should have the decoder set the appropriate factors
-    // value for the physical address calculation.
-
-    input [15:0] segment_registers[0:3],
-
-    output reg [4:0] aluop,
-
-    // @todo: Get these from micro_op.
-    output reg instruction_done,
-    output reg instruction_nearly_done,
-
     // Prefetch queue
     input [7:0] prefetch_data,
+    input queue_empty,
+    output queue_pop,
+
+    // Segment register input and output
+    // @todo: We need to be able to read and write to the segment registers.
+    // We know these take an additional cycle because they have to go to the
+    // BCU.
+    input [15:0] segment_registers[0:3],
+
+    // Execution status
+    output instruction_done,
+    output instruction_nearly_done,
 
     // Bus
     output reg [1:0]  bus_command,
@@ -32,23 +26,19 @@ module microsequencer
 
     input [15:0] data_in,
     input bus_command_done
-
-    // Segment register input and output
-    // @todo: We need to be able to read and write to the segment registers.
-    // We know these take an additional cycle because they have to go to the
-    // BCU.
 );
 
     localparam [2:0]
-        state_opcode_read    = 3'd0,
-        state_modrm_read     = 3'd1,
-        state_disp_read_low  = 3'd2,
-        state_disp_read_high = 3'd3,
-        state_imm_read_low   = 3'd4,
-        state_imm_read_high  = 3'd5,
-        state_execute        = 3'd6;
+        STATE_OPCODE_READ    = 3'd0,
+        STATE_MODRM_READ     = 3'd1,
+        STATE_DISP_LOW_READ  = 3'd2,
+        STATE_DISP_HIGH_READ = 3'd3,
+        STATE_IMM_LOW_READ   = 3'd4,
+        STATE_IMM_HIGH_READ  = 3'd5,
+        STATE_EXECUTE        = 3'd6,
+        STATE_RW_WAIT        = 3'd7;
 
-    localparam [1:0]
+    parameter [1:0]
         BUS_COMMAND_IDLE  = 2'd0,
         BUS_COMMAND_READ  = 2'd1,
         BUS_COMMAND_WRITE = 2'd2;
@@ -57,6 +47,8 @@ module microsequencer
     reg [7:0] modrm;
     reg [15:0] imm;
     reg [15:0] disp;
+
+    reg [4:0] aluop;
 
     wire has_prefix;
     wire need_modrm;
@@ -75,20 +67,24 @@ module microsequencer
     wire [3:0] src_operand;
     wire [3:0] dst_operand;
 
+    reg [2:0] state;
+
     always_latch
     begin
         // @todo: check prefix.
-        if(state == state_opcode_read)         opcode     = prefetch_data;
-        else if(state == state_modrm_read)     modrm      = prefetch_data;
-        else if(state == state_disp_read_low)  disp[7:0]  = prefetch_data;
-        else if(state == state_disp_read_high) disp[15:8] = prefetch_data;
-        else if(state == state_imm_read_low)   imm[7:0]   = prefetch_data;
-        else if(state == state_imm_read_high)  imm[15:8]  = prefetch_data;
+        if(state == STATE_OPCODE_READ)         opcode     = prefetch_data;
+        else if(state == STATE_MODRM_READ)     modrm      = prefetch_data;
+        else if(state == STATE_DISP_LOW_READ)  disp[7:0]  = prefetch_data;
+        else if(state == STATE_DISP_HIGH_READ) disp[15:8] = prefetch_data;
+        else if(state == STATE_IMM_LOW_READ)   imm[7:0]   = prefetch_data;
+        else if(state == STATE_IMM_HIGH_READ)  imm[15:8]  = prefetch_data;
     end
 
     // It also makes it easier at initialization, as the opcode takes the
     // value in prefetch_data, at least if it's not empty.
 
+    // @todo: Perhaps we should have the decoder set the appropriate 'factors'
+    // value for the physical address calculation.
     decode decode_inst
     (
         .opcode(opcode),
@@ -102,8 +98,6 @@ module microsequencer
         .need_imm(need_imm),
         .imm_size(imm_size),
 
-        //.microprogram_address(),
-
         .src(src_operand),
         .dst(dst_operand),
 
@@ -113,31 +107,42 @@ module microsequencer
     );
 
 
+    wire [1:0] mod = modrm[7:6];
+    wire [2:0] rm  = modrm[2:0];
+
     // @todo: In principle, we should be able to overlap execution with next
     // opcode read if the last microcode is not a read/write operation.
-    // Perhaps we can change state_opcode_read to being a wire opcode_read
-    // which can be turned on.
+    // Perhaps we can change state_opcode_read to being a separate wire
+    // opcode_read which can be turned on if the instruction is nearly done or
+    // done.
+
     wire [2:0] next_state =
-        (state == state_opcode_read) ?
-            (need_modrm  ? state_modrm_read:
-            (need_disp   ? state_disp_read_low:
-            (need_imm    ? state_imm_read_low:
-                          state_execute))):
-        (state == state_modrm_read) ?
-            (need_disp   ? state_disp_read_low:
-            (need_imm    ? state_imm_read_low:
-                           state_execute)):
-        (state == state_disp_read_low) ?
-            (disp_size   ? state_disp_read_high:
-            (need_imm    ? state_imm_read_low:
-                           state_execute)):
-        (state == state_disp_read_high) ?
-            (need_imm    ? state_imm_read_low:
-                           state_execute):
-        (state == state_imm_read_low) ?
-            (imm_size    ? state_imm_read_high:
-                           state_execute):
-        instruction_done ? state_opcode_read: state_execute;
+        (state == STATE_OPCODE_READ) ?
+            (need_modrm  ? STATE_MODRM_READ:
+            (need_disp   ? STATE_DISP_LOW_READ:
+            (need_imm    ? STATE_IMM_LOW_READ:
+                           STATE_EXECUTE))):
+
+        (state == STATE_MODRM_READ) ?
+            (need_disp   ? STATE_DISP_LOW_READ:
+            (need_imm    ? STATE_IMM_LOW_READ:
+                           STATE_EXECUTE)):
+
+        (state == STATE_DISP_LOW_READ) ?
+            (disp_size   ? STATE_DISP_HIGH_READ:
+            (need_imm    ? STATE_IMM_LOW_READ:
+                           STATE_EXECUTE)):
+
+        (state == STATE_DISP_HIGH_READ) ?
+            (need_imm    ? STATE_IMM_LOW_READ:
+                           STATE_EXECUTE):
+
+        (state == STATE_IMM_LOW_READ) ?
+            (imm_size    ? STATE_IMM_HIGH_READ:
+                           STATE_EXECUTE):
+        // @todo: Check that this logic is correct.
+        // Either STATE_EXECUTE or STATE_RW_WAIT.
+        instruction_done ? STATE_OPCODE_READ: state;
 
     // @info: The opcode is translated directly to a rom address. This can be done by
     //creating a rom of size 256 indexed by the opcode, where the value is
@@ -145,7 +150,7 @@ module microsequencer
 
     // @todo: Initialize roms
     reg [8:0] translation_rom[0:255];
-    reg [20:0] rom[0:511];
+    reg [21:0] rom[0:511];
 
     localparam [4:0]
         micro_mov_none = 5'h00,
@@ -212,10 +217,22 @@ module microsequencer
         // It's also important to note that I don't know if the v30mz uses any
         // of the b, c, and d lower and upper registers.
 
+    // Pop at any time that we are not executing and the queue is not empty.
+    assign queue_pop = !reset && (state < STATE_EXECUTE) && !queue_empty;
+
     initial
     begin
-        rom[0] = {1'b1, 7'd0, 3'b001, micro_mov_r, micro_mov_rm};
-        rom[1] = {1'b1, 7'd0, 3'b001, micro_mov_rm, micro_mov_r};
+        // micro_op:
+        // -----------------------
+        // 0:4; source
+        // 5:9; destination
+        // 10; next_last (nx)
+        // 11; last (nl)
+        // 12:21; type, a, b
+
+        //        type,   a/b,  nl/nx, destination,  source
+        rom[0] = {3'b001, 7'd0, 2'b10, micro_mov_r,  micro_mov_rm};
+        rom[1] = {3'b001, 7'd0, 2'b10, micro_mov_rm, micro_mov_r};
 
         for (int i = 2; i < 512; i++)
             rom[i] = 0;
@@ -265,6 +282,12 @@ module microsequencer
                                    registers[regfile_write_id][7:0]
                                });
 
+    // Program counter
+    // The PC is a 16-bit binary counter that holds the offset
+    // information of the memory address of the program that the
+    // execution unit (EXU) is about to execute.
+    reg [15:0] PC;
+
     // The register file holds the following registers
     //
     // * General purpose registers (AW, BW, CW, DW)
@@ -306,7 +329,7 @@ module microsequencer
 
     // @todo: Make this smaller
     reg [3:0] microprogram_counter;
-    wire [20:0] micro_op;
+    wire [21:0] micro_op;
     wire [8:0] address;
 
     wire [4:0] micro_mov_src;
@@ -318,43 +341,59 @@ module microsequencer
     assign address = translation_rom[opcode];
     assign micro_op = rom[address + {5'd0, microprogram_counter}];
 
-    // micro_op:
-    // -----------------------
-    // 0:4; source
-    // 5:9; destination
-    // 10:19; type, a, b
-    // 20; next_last
-
-    localparam
-        //STATE_DECODE_WAIT = 0,
-        STATE_EXECUTE = 0,
-        STATE_RW_WAIT = 1;
-
-    reg state;
+    assign instruction_nearly_done = micro_op[10];
+    assign instruction_done = micro_op[11];
 
     always_ff @ (posedge clk)
     begin
         if(reset)
         begin
             microprogram_counter    <= 0;
-            instruction_done        <= 0;
-            instruction_nearly_done <= 0;
-            state                   <= STATE_EXECUTE;
+            PC                      <= 16'h0000;
+            state                   <= STATE_OPCODE_READ;
         end
         else
         begin
-            instruction_done        <= 0;
-            instruction_nearly_done <= 0;
 
-            if(state == STATE_EXECUTE || bus_command_done)
+            if(state <= STATE_IMM_HIGH_READ)
             begin
+                // @note: I thought there might be a problem here using
+                // sequential logic: If the queue is empty on this cycle but
+                // receiving data the next cycle, queue_empty will be false
+                // only on the next rising edge, meaning that the state will
+                // move forward at the following cycle.
+                //                __    __    __
+                // clk           /  \__/  \__/  \
+                //                ______
+                // data_request  |      |________
+                //               _______
+                // queue_empty          |________
+                //               .................
+                // state         ............/....
+                //
+                // But, I think there is nothing we can do, as the queue is
+                // updated on the positive edge of the clock anyway?
+
+                // Make sure the queue is not empty at any of the read states.
+                if(!queue_empty)
+                begin
+                    // Get instruction from queue_buffer if it's not empty.
+                    if(state == STATE_OPCODE_READ)
+                        PC <= PC + 1;
+                    state <= next_state;
+                end
+            end
+            else if(state == STATE_EXECUTE || (state == STATE_RW_WAIT && bus_command_done))
+            begin
+                state <= next_state;
+
                 // Set the bus command to idle when done.
                 bus_command <= BUS_COMMAND_IDLE;
                 // @important: If the bus command is not done, it is
                 // important to keep 'register_we = 1' so that the register
                 // eventually gets written to when the data is ready.
                 regfile_we           <= 0;
-                microprogram_counter <= (micro_op[20] == 1) ? 0: microprogram_counter + 1;
+                microprogram_counter <= (instruction_done == 1) ? 0: microprogram_counter + 1;
 
                 // @note: We could also add combinational logic for reg_src,
                 // and reg_dst, and just latch here. Let's see what's
@@ -448,7 +487,7 @@ module microsequencer
                 end
 
                 // Handle other commands
-                case(micro_op[12:10])
+                case(micro_op[21:19])
 
                     // short jump
                     3'b000, 3'b100:
@@ -458,8 +497,6 @@ module microsequencer
                     // alu
                     3'b010, 3'b110:
                     begin
-                        aluop <= micro_op[16:12];
-                        instruction_nearly_done <= micro_op[20];
                     end
 
                     // misc

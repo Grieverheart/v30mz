@@ -72,16 +72,7 @@ module v30mz
     input [15:0] data_in,
 
     output logic [19:0] address_out,
-    output logic [3:0] bus_status,
-
-    // Debug output
-    output reg [2:0] state,
-    output reg prefetch_request,
-    output [7:0] prefetch_data,
-    output queue_full,
-    output queue_empty,
-    output reg push_queue,
-    output pop_queue
+    output logic [3:0] bus_status
 );
 
     // Segment registers
@@ -93,11 +84,12 @@ module v30mz
     // 4 segment registers.
     reg [15:0] PS, SS, DS0, DS1;
 
-    // Program counter
-    // The PC is a 16-bit binary counter that holds the offset
-    // information of the memory address of the program that the
-    // execution unit (EXU) is about to execute.
-    reg [15:0] PC;
+    //  @todo: Use a proper register file.
+    wire [15:0] segment_registers[0:3];
+    assign segment_registers[0] = PS;
+    assign segment_registers[1] = SS;
+    assign segment_registers[2] = DS0;
+    assign segment_registers[3] = DS1;
 
     // Program status word
     // The PSW consists of 6 kinds of status flag and 4 kinds of
@@ -111,20 +103,59 @@ module v30mz
     // that's being made.
     reg [1:0] reset_counter;
     assign address_out = (reset_counter == 0)? 20'hfffff: {PS, 4'd0} + {4'd0, PFP};
-    assign pop_queue = !reset && (state != state_execute) && !queue_empty;
+
+    reg prefetch_request;
+    wire [7:0] prefetch_data;
+
+    wire queue_full;
+    wire queue_empty;
+    wire queue_pop;
+    reg queue_push;
 
     prefetch_queue prefetch_inst
     (
         .clk(clk),
         .reset(reset_counter == 0),
-        .pop(pop_queue),
-        .push(push_queue),
+        .pop(queue_pop),
+        .push(queue_push),
         .data_in(data_in),
 
         .PFP(PFP),
         .data_out(prefetch_data),
         .empty(queue_empty),
         .full(queue_full)
+    );
+
+    wire instruction_done;
+    wire instruction_nearly_done;
+
+    wire [1:0] eu_bus_command;
+    wire [19:0] eu_bus_address;
+    wire [15:0] eu_data_out;
+
+    execution_unit execution_unit_inst
+    (
+        .clk(clk),
+        .reset(reset_counter == 0),
+
+        // Prefetch queue
+        .prefetch_data(prefetch_data),
+        .queue_empty(queue_empty),
+        .queue_pop(queue_pop),
+
+        // Segment register input and output
+        .segment_registers(segment_registers),
+
+        .instruction_done(instruction_done),
+        .instruction_nearly_done(instruction_nearly_done),
+
+        // Bus
+        .bus_command(eu_bus_command),
+        .bus_address(eu_bus_address),
+        .data_out(eu_data_out),
+
+        .data_in(data_in),
+        .bus_command_done(!readyb)
     );
 
     reg reset_initiated;
@@ -146,17 +177,14 @@ module v30mz
 
                     bus_status <= 4'hf;
 
-                    PC  <= 16'h0000;
                     PS  <= 16'hFFFF;
                     SS  <= 16'h0000;
                     DS0 <= 16'h0000;
                     DS1 <= 16'h0000;
                     PSW <= 16'b1111000000000010;
 
-                    state <= state_opcode_read;
-
                     // Reset queue
-                    push_queue <= 0;
+                    queue_push <= 0;
                     prefetch_request <= 0;
                 end
             end
@@ -168,7 +196,7 @@ module v30mz
             // @note: This commented out block reads without returning the bus
             // status back to 4'b1111, unless we stop reading, which in this
             // case happens when the queue is full.
-            push_queue <= 0;
+            queue_push <= 0;
             //if(!queue_full)
             //begin
             //    prefetch_request <= 1;
@@ -182,45 +210,22 @@ module v30mz
 
             //if(prefetch_request && !readyb)
             //begin
-            //    push_queue <= 1;
+            //    queue_push <= 1;
             //end
 
             // Data read request, get prefetch data from data bus.
             if(prefetch_request && !readyb)
             begin
-                push_queue <= 1;
+                queue_push <= 1;
                 prefetch_request <= 0;
                 bus_status <= 4'b1111;
             end
-            else if(!prefetch_request && !queue_full)
+            else if(!prefetch_request && !queue_full) // @todo: (&& bus_command == BUS_COMMAND_IDLE)
             begin
                 // Prefetch instruction if not full, or waiting for memory.
                 prefetch_request <= 1;
                 bus_status <= 4'b1001;
             end
-
-            // Fetch instruction bytes
-            case(state)
-
-                state_opcode_read:
-                begin
-                    // Get instruction from queue_buffer if it's not empty.
-                    if(!queue_empty)
-                    begin
-                        PC <= PC + 1;
-                        state <= next_state;
-                    end
-
-                end
-
-                state_execute:
-                begin
-                    state <= next_state;
-                end
-
-                default: state <= next_state;
-
-            endcase
         end
     end
 
