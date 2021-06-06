@@ -114,7 +114,7 @@ module v30mz
     wire queue_full;
     wire queue_empty;
     wire queue_pop;
-    reg queue_push;
+    wire queue_push;
 
     prefetch_queue prefetch_inst
     (
@@ -163,6 +163,8 @@ module v30mz
         .bus_command_done((prefetch_request || queue_push)? 0: !readyb)
     );
 
+    assign queue_push = ((reset_counter > 0) && prefetch_request && !readyb)? 1: 0;
+
     reg reset_initiated;
     always_ff @ (posedge clk)
     begin
@@ -189,7 +191,6 @@ module v30mz
                     PSW <= 16'b1111000000000010;
 
                     // Reset queue
-                    queue_push <= 0;
                     prefetch_request <= 0;
                 end
             end
@@ -197,34 +198,28 @@ module v30mz
         else
         begin
             // Bus control unit
-
-            // @note: This commented out block reads without returning the bus
-            // status back to 4'b1111, unless we stop reading, which in this
-            // case happens when the queue is full.
-            queue_push <= 0;
-
-            // Always finish prefetch before taking care of other r/w
-            // requests.
-            if(prefetch_request)
+            if(!readyb)
             begin
-                if(!readyb)
+                // Finish prefetch before taking care of other r/w requests.
+                if(prefetch_request)
                 begin
-                    queue_push       <= 1;
                     prefetch_request <= 0;
                     bus_status       <= 4'hf;
                 end
-            end
-            else if(!queue_full && (eu_bus_command == BUS_COMMAND_IDLE))
-            begin
-                // Prefetch instruction if not full, or waiting for memory.
-                prefetch_request <= 1;
-                bus_status       <= 4'b1001;
-            end
-            else if(eu_bus_command == BUS_COMMAND_READ)
-                bus_status <= 4'b1001;
 
-            else if(eu_bus_command == BUS_COMMAND_WRITE)
-                bus_status <= 4'b1010;
+                if(eu_bus_command == BUS_COMMAND_READ)
+                    bus_status <= 4'b1001;
+
+                else if(eu_bus_command == BUS_COMMAND_WRITE)
+                    bus_status <= 4'b1010;
+
+                // Prefetch instruction if not full, or waiting for memory.
+                else if((eu_bus_command == BUS_COMMAND_IDLE) && !queue_full)
+                begin
+                    prefetch_request <= 1;
+                    bus_status       <= 4'b1001;
+                end
+            end
 
         end
     end

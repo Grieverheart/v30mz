@@ -54,7 +54,7 @@ int main(int argc, char** argv, char** env)
             v30mz->readyb = 1;
             data_sent = false;
         }
-        else if(v30mz->bus_status == 0x9)
+        if(v30mz->bus_status == 0x9)
         {
             v30mz->data_in = (v30mz->address_out == 0)?
                 0xbeef:
