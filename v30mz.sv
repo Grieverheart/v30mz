@@ -70,9 +70,10 @@ module v30mz
     input reset,
     input readyb,
     input [15:0] data_in,
+    output [15:0] data_out,
 
     output logic [19:0] address_out,
-    output logic [3:0] bus_status
+    output logic [3:0]  bus_status
 );
 
     // Segment registers
@@ -99,10 +100,13 @@ module v30mz
 
     wire [15:0] PFP;
 
-    // @todo: Should multiplex this depending on the type of read or write
-    // that's being made.
     reg [1:0] reset_counter;
-    assign address_out = (reset_counter == 0)? 20'hfffff: {PS, 4'd0} + {4'd0, PFP};
+    assign address_out =
+        (reset_counter == 0)?
+            20'hfffff:
+        (eu_bus_command != BUS_COMMAND_IDLE && !prefetch_request)?
+            eu_bus_address:
+            {PS, 4'd0} + {4'd0, PFP};
 
     reg prefetch_request;
     wire [7:0] prefetch_data;
@@ -129,9 +133,9 @@ module v30mz
     wire instruction_done;
     wire instruction_nearly_done;
 
-    wire [1:0] eu_bus_command;
+    // @todo: Use these.
+    wire [1:0]  eu_bus_command;
     wire [19:0] eu_bus_address;
-    wire [15:0] eu_data_out;
 
     execution_unit execution_unit_inst
     (
@@ -152,10 +156,11 @@ module v30mz
         // Bus
         .bus_command(eu_bus_command),
         .bus_address(eu_bus_address),
-        .data_out(eu_data_out),
+        .data_out(data_out),
 
         .data_in(data_in),
-        .bus_command_done(!readyb)
+        // We should not route readyb to EXU when we issued a prefetch.
+        .bus_command_done((prefetch_request || queue_push)? 0: !readyb)
     );
 
     reg reset_initiated;
@@ -197,35 +202,30 @@ module v30mz
             // status back to 4'b1111, unless we stop reading, which in this
             // case happens when the queue is full.
             queue_push <= 0;
-            //if(!queue_full)
-            //begin
-            //    prefetch_request <= 1;
-            //    bus_status <= 4'b1001;
-            //end
-            //else
-            //begin
-            //    prefetch_request <= 0;
-            //    bus_status <= 4'b1111;
-            //end
 
-            //if(prefetch_request && !readyb)
-            //begin
-            //    queue_push <= 1;
-            //end
-
-            // Data read request, get prefetch data from data bus.
-            if(prefetch_request && !readyb)
+            // Always finish prefetch before taking care of other r/w
+            // requests.
+            if(prefetch_request)
             begin
-                queue_push <= 1;
-                prefetch_request <= 0;
-                bus_status <= 4'b1111;
+                if(!readyb)
+                begin
+                    queue_push       <= 1;
+                    prefetch_request <= 0;
+                    bus_status       <= 4'hf;
+                end
             end
-            else if(!prefetch_request && !queue_full) // @todo: (&& bus_command == BUS_COMMAND_IDLE)
+            else if(!queue_full && (eu_bus_command == BUS_COMMAND_IDLE))
             begin
                 // Prefetch instruction if not full, or waiting for memory.
                 prefetch_request <= 1;
-                bus_status <= 4'b1001;
+                bus_status       <= 4'b1001;
             end
+            else if(eu_bus_command == BUS_COMMAND_READ)
+                bus_status <= 4'b1001;
+
+            else if(eu_bus_command == BUS_COMMAND_WRITE)
+                bus_status <= 4'b1010;
+
         end
     end
 

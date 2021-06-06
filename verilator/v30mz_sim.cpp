@@ -8,7 +8,7 @@ int main(int argc, char** argv, char** env)
 
     Vv30mz* v30mz = new Vv30mz;
     v30mz->clk = 0;
-    v30mz->readyb = 1;
+    v30mz->readyb = 0;
     v30mz->reset = 1;
 
     Verilated::traceEverOn(true);
@@ -16,9 +16,26 @@ int main(int argc, char** argv, char** env)
     v30mz->trace(tfp, 99);  // Trace 99 levels of hierarchy
     tfp->open("sim.vcd");
 
+    uint8_t instructions[] = 
+    {
+        0x8b,0x00,
+        0x8b,0x08,
+        0x8b,0x10,
+        0x8b,0x00,
+        0x8b,0x08,
+        0x8b,0x10,
+        0x8b,0x00,
+        0x8b,0x00,
+        0x8b,0x00,
+        0x8b,0x00,
+        0x8b,0x00
+    };
+
+    int mem_counter = 0;
+
     int timestamp = 0;
     bool data_sent = false;
-    while (timestamp < 200 && !Verilated::gotFinish())
+    while (timestamp < 50 && !Verilated::gotFinish())
     {
         v30mz->clk = 0;
         v30mz->eval();
@@ -37,10 +54,12 @@ int main(int argc, char** argv, char** env)
             v30mz->readyb = 1;
             data_sent = false;
         }
-
-        if(v30mz->bus_status == 0x9)
+        else if(v30mz->bus_status == 0x9)
         {
-            v30mz->data_in = 0x01 | (((timestamp/4) % 2 == 0)? 0x08: 0x10) << 8;
+            v30mz->data_in = (v30mz->address_out == 0)?
+                0xbeef:
+                *(uint16_t*)(instructions + 2*mem_counter++);
+
             v30mz->readyb  = 0;
             data_sent = true;
         }

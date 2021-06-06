@@ -1,4 +1,11 @@
 
+enum [1:0]
+{
+    BUS_COMMAND_IDLE  = 2'd0,
+    BUS_COMMAND_READ  = 2'd1,
+    BUS_COMMAND_WRITE = 2'd2
+} BusCommand;
+
 module execution_unit
 (
     input clk,
@@ -35,13 +42,7 @@ module execution_unit
         STATE_DISP_HIGH_READ = 3'd3,
         STATE_IMM_LOW_READ   = 3'd4,
         STATE_IMM_HIGH_READ  = 3'd5,
-        STATE_EXECUTE        = 3'd6,
-        STATE_RW_WAIT        = 3'd7;
-
-    parameter [1:0]
-        BUS_COMMAND_IDLE  = 2'd0,
-        BUS_COMMAND_READ  = 2'd1,
-        BUS_COMMAND_WRITE = 2'd2;
+        STATE_EXECUTE        = 3'd6;
 
     reg [7:0] opcode;
     reg [7:0] modrm;
@@ -140,9 +141,8 @@ module execution_unit
         (state == STATE_IMM_LOW_READ) ?
             (imm_size    ? STATE_IMM_HIGH_READ:
                            STATE_EXECUTE):
-        // @todo: Check that this logic is correct.
-        // Either STATE_EXECUTE or STATE_RW_WAIT.
-        instruction_done ? STATE_OPCODE_READ: state;
+        // STATE_EXECUTE
+        instruction_done ? STATE_OPCODE_READ: STATE_EXECUTE;
 
     // @info: The opcode is translated directly to a rom address. This can be done by
     //creating a rom of size 256 indexed by the opcode, where the value is
@@ -327,6 +327,7 @@ module execution_unit
         .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
     );
 
+    reg read_write_wait;
     // @todo: Make this smaller
     reg [3:0] microprogram_counter;
     wire [21:0] micro_op;
@@ -348,12 +349,41 @@ module execution_unit
     begin
         if(reset)
         begin
-            microprogram_counter    <= 0;
-            PC                      <= 16'h0000;
-            state                   <= STATE_OPCODE_READ;
+            microprogram_counter <= 0;
+            read_write_wait      <= 0;
+            PC                   <= 16'h0000;
+            state                <= STATE_OPCODE_READ;
+            bus_command          <= BUS_COMMAND_IDLE;
         end
         else
         begin
+            if(bus_command_done)
+            begin
+                bus_command     <= BUS_COMMAND_IDLE;
+                read_write_wait <= 0;
+                regfile_we      <= 0;
+            end
+
+            // @todo: Allow reading when instruction is done or nearly done.
+            // Perhaps we can achieve this by removing the execute state,
+            // making the current states only for reading the opcode bytes,
+            // and having a separate reg enabled when executing. The reg is
+            // enabled when next_state == STATE_OPCODE_READ. The state of the
+            // opcode reader is then set to next_state only when
+            // instruction_done or instruction_nearly_done. The following
+            // should work, but I think it will only give benefits when we
+            // have instructions that set instruction_nearly_done.
+            //
+            // if(!queue_empty && (instruction_done || instruction_nearly_done))
+            // begin
+            //     // Get instruction from queue_buffer if it's not empty.
+            //     if(state == STATE_OPCODE_READ)
+            //         PC <= PC + 1;
+            //     if(next_state == STATE_OPCODE_READ)
+            //         execute <= 1;
+
+            //     state <= next_state;
+            // end
 
             if(state <= STATE_IMM_HIGH_READ)
             begin
@@ -383,16 +413,11 @@ module execution_unit
                     state <= next_state;
                 end
             end
-            else if(state == STATE_EXECUTE || (state == STATE_RW_WAIT && bus_command_done))
+            // STATE_EXECUTE
+            else if(!read_write_wait || bus_command_done)
             begin
                 state <= next_state;
 
-                // Set the bus command to idle when done.
-                bus_command <= BUS_COMMAND_IDLE;
-                // @important: If the bus command is not done, it is
-                // important to keep 'register_we = 1' so that the register
-                // eventually gets written to when the data is ready.
-                regfile_we           <= 0;
                 microprogram_counter <= (instruction_done == 1) ? 0: microprogram_counter + 1;
 
                 // @note: We could also add combinational logic for reg_src,
@@ -409,9 +434,9 @@ module execution_unit
                 if(micro_mov_src == micro_mov_rm && mod != 2'b11)
                 begin
                     // Source is memory
-                    bus_address  <= physical_address;
-                    bus_command  <= BUS_COMMAND_READ;
-                    state        <= STATE_RW_WAIT;
+                    bus_address     <= physical_address;
+                    bus_command     <= BUS_COMMAND_READ;
+                    read_write_wait <= 1;
 
                     mov_from     <= 2'b01;
                     mov_src_size <= opcode[0];
@@ -453,9 +478,9 @@ module execution_unit
                 if(micro_mov_dst == micro_mov_rm && mod != 2'b11)
                 begin
                     // Destination is memory
-                    bus_address  <= physical_address;
-                    bus_command  <= BUS_COMMAND_WRITE;
-                    state        <= STATE_RW_WAIT;
+                    bus_address     <= physical_address;
+                    bus_command     <= BUS_COMMAND_WRITE;
+                    read_write_wait <= 1;
 
                     mov_dst_size <= opcode[0];
                 end
