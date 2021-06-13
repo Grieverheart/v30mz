@@ -47,6 +47,9 @@ module decode
     output reg [3:0] src,
     output reg [3:0] dst,
 
+    // W
+    output byte_word_field,
+
     // Effective address registers
     output [3:0] base,
     output [3:0] index,
@@ -68,6 +71,8 @@ module decode
 
     assign need_disp_mod = (rm == 3'b110 && mod == 0) || ^mod;
     assign disp_size_mod = (rm == 3'b110 && mod == 0)? 1: mod[1];
+
+    assign byte_word_field = (opcode[7:4] != 4'b1011)? opcode[0]: opcode[3];
 
     // Assign the base, index and segment registers.
     // @note: The high bit of the base and index registers is set when the
@@ -616,6 +621,16 @@ module decode
                 imm_size   <= 0;
                 dst        <= 0;
                 src        <= {1'b0, srcm};
+            end
+            
+            8'b1100_011?: // mov: i->m (or i->r non-standard)
+            begin
+                need_modrm <= 1;
+                need_disp  <= need_disp_mod;
+                need_imm   <= 1;
+                imm_size   <= opcode[0];
+                src        <= 0;
+                dst        <= {1'b0, rm};
             end
 
             8'b1100_1000: // PREPARE (ENTER)

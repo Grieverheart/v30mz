@@ -68,6 +68,8 @@ module execution_unit
     wire [3:0] src_operand;
     wire [3:0] dst_operand;
 
+    wire byte_word_field;
+
     reg [2:0] state;
 
     always_latch
@@ -101,6 +103,8 @@ module execution_unit
 
         .src(src_operand),
         .dst(dst_operand),
+
+        .byte_word_field(byte_word_field),
 
         .base(ea_base_reg),
         .index(ea_index_reg),
@@ -141,8 +145,10 @@ module execution_unit
         (state == STATE_IMM_LOW_READ) ?
             (imm_size    ? STATE_IMM_HIGH_READ:
                            STATE_EXECUTE):
+
+        (state == STATE_IMM_HIGH_READ) ? STATE_EXECUTE:
         // STATE_EXECUTE
-        instruction_done ? STATE_OPCODE_READ: STATE_EXECUTE;
+        (instruction_done ? STATE_OPCODE_READ: STATE_EXECUTE);
 
     // @info: The opcode is translated directly to a rom address. This can be done by
     //creating a rom of size 256 indexed by the opcode, where the value is
@@ -233,8 +239,9 @@ module execution_unit
         //        type,   a/b,  nl/nx, destination,  source
         rom[0] = {3'b001, 7'd0, 2'b10, micro_mov_r,  micro_mov_rm};
         rom[1] = {3'b001, 7'd0, 2'b10, micro_mov_rm, micro_mov_r};
+        rom[2] = {3'b001, 7'd0, 2'b10, micro_mov_rm, micro_mov_imm};
 
-        for (int i = 2; i < 512; i++)
+        for (int i = 3; i < 512; i++)
             rom[i] = 0;
 
         for (int i = 0; i < 256; i++)
@@ -242,6 +249,16 @@ module execution_unit
 
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1000101, i[0]}] = 9'd0; // MOV mem -> reg
+
+        for (int j = 0; j < 8; j++)
+            for (int i = 0; i < 2; i++)
+                translation_rom[{4'b1011, i[0], j[2:0]}] = 9'd2; // MOV imm -> reg
+
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1100011, i[0]}] = 9'd2; // MOV imm -> rm
+
+        //for (int i = 0; i < 2; i++)
+        //    translation_rom[{7'b1100011, i[0]}] = 9'd0; // MOV immg -> mem
 
     end
 
@@ -357,7 +374,7 @@ module execution_unit
         end
         else
         begin
-            if(bus_command_done)
+            if(bus_command_done || !read_write_wait)
             begin
                 bus_command     <= BUS_COMMAND_IDLE;
                 read_write_wait <= 0;
@@ -439,14 +456,14 @@ module execution_unit
                     read_write_wait <= 1;
 
                     mov_from     <= 2'b01;
-                    mov_src_size <= opcode[0];
+                    mov_src_size <= byte_word_field;
                 end
                 else if(micro_mov_src == micro_mov_rm || micro_mov_src == micro_mov_r)
                 begin
                     // Source is register specified by modrm.
                     reg_src      <= src_operand[2:0];
                     mov_from     <= 2'b00;
-                    mov_src_size <= opcode[0];
+                    mov_src_size <= byte_word_field;
                 end
                 else if(micro_mov_src == micro_mov_imm)
                 begin
@@ -475,20 +492,20 @@ module execution_unit
 
 
                 // ** Handle move destination writing **
-                if(micro_mov_dst == micro_mov_rm && mod != 2'b11)
+                if(micro_mov_dst == micro_mov_rm && need_modrm && mod != 2'b11)
                 begin
                     // Destination is memory
                     bus_address     <= physical_address;
                     bus_command     <= BUS_COMMAND_WRITE;
                     read_write_wait <= 1;
 
-                    mov_dst_size <= opcode[0];
+                    mov_dst_size <= byte_word_field;
                 end
-                else if(micro_mov_dst == micro_mov_rm || micro_mov_dst == micro_mov_r)
+                else if((micro_mov_dst == micro_mov_rm) || (micro_mov_dst == micro_mov_r))
                 begin
                     // Destination is register specified by modrm.
                     reg_dst      <= dst_operand[2:0];
-                    mov_dst_size <= opcode[0];
+                    mov_dst_size <= byte_word_field;
                     regfile_we   <= 1;
                 end
                 else
