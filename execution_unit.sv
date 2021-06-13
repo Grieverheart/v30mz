@@ -362,24 +362,123 @@ module execution_unit
     assign instruction_nearly_done = micro_op[10];
     assign instruction_done = micro_op[11];
 
+    // @todo: Make sure everything's correct and clean here.
+    always_latch
+    begin
+        if(reset)
+        begin
+            read_write_wait <= 0;
+            bus_command     <= BUS_COMMAND_IDLE;
+        end
+        else if(bus_command_done || !read_write_wait)
+        begin
+            read_write_wait <= 0;
+            bus_command     <= BUS_COMMAND_IDLE;
+            regfile_we      <= 0;
+        end
+
+        // * Handle move command *
+
+        // @todo: Handle segment registers separately.
+        // This depends on destination.
+
+        if(state == STATE_EXECUTE)
+        begin
+            // ** Handle move source reading **
+            if(micro_mov_src == micro_mov_rm && mod != 2'b11)
+            begin
+                // Source is memory
+                bus_address     <= physical_address;
+                bus_command     <= BUS_COMMAND_READ;
+                read_write_wait <= 1;
+
+                mov_from     <= 2'b01;
+                mov_src_size <= byte_word_field;
+            end
+            else if(micro_mov_src == micro_mov_rm || micro_mov_src == micro_mov_r)
+            begin
+                // Source is register specified by modrm.
+                reg_src      <= src_operand[2:0];
+                mov_from     <= 2'b00;
+                mov_src_size <= byte_word_field;
+            end
+            else if(micro_mov_src == micro_mov_imm)
+            begin
+                // Source is immediate.
+                mov_from  <= 2'b10;
+                mov_src_size <= imm_size;
+            end
+            else
+            begin
+                // Source is register specified by micro_op.
+                if(micro_mov_src >= micro_mov_aw)
+                begin
+                    // Source is word register
+                    reg_src <= {micro_mov_src[3], micro_mov_src[1:0]};
+                    mov_src_size  <= 1;
+                end
+                else
+                begin
+                    // Source is byte register
+                    reg_src <= micro_mov_src[2:0];
+                    mov_src_size  <= 0;
+                end
+
+                mov_from <= 2'b00;
+            end
+
+
+            // ** Handle move destination writing **
+            if(micro_mov_dst == micro_mov_rm && need_modrm && mod != 2'b11)
+            begin
+                // Destination is memory
+                bus_address     <= physical_address;
+                bus_command     <= BUS_COMMAND_WRITE;
+                read_write_wait <= 1;
+
+                mov_dst_size <= byte_word_field;
+            end
+            else if((micro_mov_dst == micro_mov_rm) || (micro_mov_dst == micro_mov_r))
+            begin
+                // Destination is register specified by modrm.
+                reg_dst      <= dst_operand[2:0];
+                mov_dst_size <= byte_word_field;
+                regfile_we   <= 1;
+            end
+            else
+            begin
+                // Destination is register specified by micro_op.
+                regfile_we <= 1;
+
+                if(micro_mov_dst >= micro_mov_aw)
+                begin
+                    // Destination is word register
+                    reg_dst <= {micro_mov_dst[3], micro_mov_dst[1:0]};
+                    mov_dst_size <= 1;
+                end
+                else
+                begin
+                    // Destination is byte register
+                    reg_dst <= micro_mov_dst[2:0];
+                    mov_dst_size <= 0;
+                end
+
+            end
+        end
+    end
+
     always_ff @ (posedge clk)
     begin
         if(reset)
         begin
             microprogram_counter <= 0;
-            read_write_wait      <= 0;
+            //read_write_wait      <= 0;
             PC                   <= 16'h0000;
             state                <= STATE_OPCODE_READ;
-            bus_command          <= BUS_COMMAND_IDLE;
+            //bus_command          <= BUS_COMMAND_IDLE;
         end
         else
         begin
-            if(bus_command_done || !read_write_wait)
-            begin
-                bus_command     <= BUS_COMMAND_IDLE;
-                read_write_wait <= 0;
-                regfile_we      <= 0;
-            end
 
             // @todo: Allow reading when instruction is done or nearly done.
             // Perhaps we can achieve this by removing the execute state,
@@ -436,97 +535,6 @@ module execution_unit
                 state <= next_state;
 
                 microprogram_counter <= (instruction_done == 1) ? 0: microprogram_counter + 1;
-
-                // @note: We could also add combinational logic for reg_src,
-                // and reg_dst, and just latch here. Let's see what's
-                // simpler.
-
-
-                // @todo: Handle segment registers separately.
-                // This depends on destination.
-
-                // * Handle move command *
-
-                // ** Handle move source reading **
-                if(micro_mov_src == micro_mov_rm && mod != 2'b11)
-                begin
-                    // Source is memory
-                    bus_address     <= physical_address;
-                    bus_command     <= BUS_COMMAND_READ;
-                    read_write_wait <= 1;
-
-                    mov_from     <= 2'b01;
-                    mov_src_size <= byte_word_field;
-                end
-                else if(micro_mov_src == micro_mov_rm || micro_mov_src == micro_mov_r)
-                begin
-                    // Source is register specified by modrm.
-                    reg_src      <= src_operand[2:0];
-                    mov_from     <= 2'b00;
-                    mov_src_size <= byte_word_field;
-                end
-                else if(micro_mov_src == micro_mov_imm)
-                begin
-                    // Source is immediate.
-                    mov_from  <= 2'b10;
-                    mov_src_size <= imm_size;
-                end
-                else
-                begin
-                    // Source is register specified by micro_op.
-                    if(micro_mov_src >= micro_mov_aw)
-                    begin
-                        // Source is word register
-                        reg_src <= {micro_mov_src[3], micro_mov_src[1:0]};
-                        mov_src_size  <= 1;
-                    end
-                    else
-                    begin
-                        // Source is byte register
-                        reg_src <= micro_mov_src[2:0];
-                        mov_src_size  <= 0;
-                    end
-
-                    mov_from <= 2'b00;
-                end
-
-
-                // ** Handle move destination writing **
-                if(micro_mov_dst == micro_mov_rm && need_modrm && mod != 2'b11)
-                begin
-                    // Destination is memory
-                    bus_address     <= physical_address;
-                    bus_command     <= BUS_COMMAND_WRITE;
-                    read_write_wait <= 1;
-
-                    mov_dst_size <= byte_word_field;
-                end
-                else if((micro_mov_dst == micro_mov_rm) || (micro_mov_dst == micro_mov_r))
-                begin
-                    // Destination is register specified by modrm.
-                    reg_dst      <= dst_operand[2:0];
-                    mov_dst_size <= byte_word_field;
-                    regfile_we   <= 1;
-                end
-                else
-                begin
-                    // Destination is register specified by micro_op.
-                    regfile_we <= 1;
-
-                    if(micro_mov_dst >= micro_mov_aw)
-                    begin
-                        // Destination is word register
-                        reg_dst <= {micro_mov_dst[3], micro_mov_dst[1:0]};
-                        mov_dst_size <= 1;
-                    end
-                    else
-                    begin
-                        // Destination is byte register
-                        reg_dst <= micro_mov_dst[2:0];
-                        mov_dst_size <= 0;
-                    end
-
-                end
 
                 // Handle other commands
                 case(micro_op[21:19])
