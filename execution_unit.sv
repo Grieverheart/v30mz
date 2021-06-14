@@ -272,7 +272,8 @@ module execution_unit
     reg mov_src_size;
     reg mov_dst_size;
     reg [1:0] mov_from; // 0,3: reg, 1: mem, 2: imm
-    // @todo: Maybe we should latch the imm value?
+    // @todo: We should also latch the imm value, otherwise we're going to
+    // have problems when we implement pipelining.
 
     wire [15:0] reg_read = 
          (mov_src_size == 1) ? registers[reg_src]:
