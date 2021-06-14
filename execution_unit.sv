@@ -257,9 +257,6 @@ module execution_unit
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1100011, i[0]}] = 9'd2; // MOV imm -> rm
 
-        //for (int i = 0; i < 2; i++)
-        //    translation_rom[{7'b1100011, i[0]}] = 9'd0; // MOV immg -> mem
-
     end
 
     reg regfile_we;
@@ -344,6 +341,9 @@ module execution_unit
         .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
     );
 
+    // @note: This might play a more important role later, e.g. we might have
+    // a microinstruction flag telling us if we should we for the read/write
+    // before running the next microinstruction.
     reg read_write_wait;
     // @todo: Make this smaller
     reg [3:0] microprogram_counter;
@@ -362,15 +362,9 @@ module execution_unit
     assign instruction_nearly_done = micro_op[10];
     assign instruction_done = micro_op[11];
 
-    // @todo: Make sure everything's correct and clean here.
     always_latch
     begin
-        if(reset)
-        begin
-            read_write_wait <= 0;
-            bus_command     <= BUS_COMMAND_IDLE;
-        end
-        else if(bus_command_done || !read_write_wait)
+        if(reset || bus_command_done)
         begin
             read_write_wait <= 0;
             bus_command     <= BUS_COMMAND_IDLE;
@@ -472,10 +466,8 @@ module execution_unit
         if(reset)
         begin
             microprogram_counter <= 0;
-            //read_write_wait      <= 0;
             PC                   <= 16'h0000;
             state                <= STATE_OPCODE_READ;
-            //bus_command          <= BUS_COMMAND_IDLE;
         end
         else
         begin
@@ -537,6 +529,10 @@ module execution_unit
                 microprogram_counter <= (instruction_done == 1) ? 0: microprogram_counter + 1;
 
                 // Handle other commands
+                // @note: Not sure if I need to handle all these types of
+                // microcode instructions. Certain jumps were introduced in
+                // 8086 to reduce the microcode size, but this is not a huge
+                // problem here.
                 case(micro_op[21:19])
 
                     // short jump
