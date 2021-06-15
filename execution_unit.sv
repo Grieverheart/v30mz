@@ -238,6 +238,8 @@ module execution_unit
         rom[0] = {3'b001, 7'd0, 2'b10, micro_mov_r,  micro_mov_rm};
         rom[1] = {3'b001, 7'd0, 2'b10, micro_mov_rm, micro_mov_r};
         rom[2] = {3'b001, 7'd0, 2'b10, micro_mov_rm, micro_mov_imm};
+        // @todo: implement nop
+        // rom[3] = {3'b001, 7'd0, 2'b10, micro_mov_none, micro_mov_none};
 
         for (int i = 3; i < 512; i++)
             rom[i] = 0;
@@ -246,14 +248,16 @@ module execution_unit
             translation_rom[i] = 0;
 
         for (int i = 0; i < 2; i++)
-            translation_rom[{7'b1000101, i[0]}] = 9'd0; // MOV mem -> reg
+            translation_rom[{7'b1000101, i[0]}] = 9'd0;          // MOV mem -> reg
 
         for (int j = 0; j < 8; j++)
             for (int i = 0; i < 2; i++)
                 translation_rom[{4'b1011, i[0], j[2:0]}] = 9'd2; // MOV imm -> reg
 
         for (int i = 0; i < 2; i++)
-            translation_rom[{7'b1100011, i[0]}] = 9'd2; // MOV imm -> rm
+            translation_rom[{7'b1100011, i[0]}] = 9'd2;          // MOV imm -> rm
+
+        translation_rom[8'b10001100] = 9'd1;                     // MOV sreg -> rm
 
     end
 
@@ -275,13 +279,14 @@ module execution_unit
     // have problems when we implement pipelining.
 
     wire [15:0] reg_read = 
-         (mov_src_size == 1) ? registers[reg_src]:
+         (mov_from == 2'd3)  ? segment_registers[reg_src[1:0]]:
+        ((mov_src_size == 1) ? registers[reg_src]:
         ((reg_src[2]   == 0) ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
-                               {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]});
+                               {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]}));
 
     assign regfile_write_data_temp =
-         (mov_from == 2'b01) ? data_in:
-        ((mov_from == 2'b10) ? imm:
+         (mov_from == 2'd1) ? data_in:
+        ((mov_from == 2'd2) ? imm:
                                reg_read);
 
     assign regfile_write_id = (mov_src_size == 1) ? reg_dst: {1'd0, reg_dst[1:0]};
@@ -397,7 +402,7 @@ module execution_unit
             begin
                 // Source is register specified by modrm.
                 reg_src      <= src_operand[2:0];
-                mov_from     <= 2'b00;
+                mov_from     <= src_operand[3]? 2'd3: 2'd0;
                 mov_src_size <= byte_word_field;
             end
             else if(micro_mov_src == micro_mov_imm)

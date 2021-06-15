@@ -18,8 +18,9 @@ int main(int argc, char** argv, char** env)
 
     uint8_t instructions[] = 
     {
-        0xb8,      // mov i->r
-        0xef,0xbe, // imm
+        0x8c,0xc1, // mov s->r
+        0x8c,0xc1, // mov s->r
+        0x8c,0xc1, // mov s->r
 
         0x8b,0x08,
         0x8b,0x10,

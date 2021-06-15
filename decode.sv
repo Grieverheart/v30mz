@@ -72,7 +72,8 @@ module decode
     assign need_disp_mod = (rm == 3'b110 && mod == 0) || ^mod;
     assign disp_size_mod = (rm == 3'b110 && mod == 0)? 1: mod[1];
 
-    assign byte_word_field = (opcode[7:4] != 4'b1011)? opcode[0]: opcode[3];
+    assign byte_word_field =
+        (opcode[7:4] != 4'b1011 && opcode[7:2] != 6'b100011)? opcode[0]: opcode[3];
 
     // Assign the base, index and segment registers.
     // @note: The high bit of the base and index registers is set when the
