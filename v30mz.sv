@@ -84,18 +84,18 @@ module v30mz
     // start address of each segment is specified by the following
     // 4 segment registers.
     wire [15:0] segment_registers[0:3];
-    reg sregfile_we;
-    reg [15:0] sregfile_write_data;
-    reg [1:0] sregfile_write_id;
 
+    // @note: For now, only the execution unit can write to this register
+    // file. I don't see any reason for the bus control unit needing to write
+    // to the segment registers.
     register_file#(4) segment_register_file_inst
     (
         .clk(clk),
         .reset(resetn),
 
-        .we(sregfile_we || eu_sreg_we),
-        .write_id(sregfile_we ? sregfile_write_id: eu_sreg_write_id),
-        .write_data(sregfile_we ? sregfile_write_data: eu_sreg_write_data),
+        .we(eu_sreg_we),
+        .write_id(eu_sreg_write_id),
+        .write_data(eu_sreg_write_data),
 
         .registers(segment_registers)
     );
@@ -155,7 +155,6 @@ module v30mz
     wire [1:0]  eu_sreg_write_id;
     wire [15:0] eu_sreg_write_data;
     wire eu_sreg_we;
-    reg eu_sreg_write_done;
 
     execution_unit execution_unit_inst
     (
@@ -170,7 +169,6 @@ module v30mz
         // Segment register input and output
         .segment_registers(segment_registers),
 
-        .sreg_write_done(eu_sreg_write_done),
         .sreg_write_data(eu_sreg_write_data),
         .sreg_write_id(eu_sreg_write_id),
         .sreg_we(eu_sreg_we),
@@ -210,10 +208,6 @@ module v30mz
 
                     bus_status <= 4'hf;
 
-                    sregfile_write_data <= 16'hFFFF;
-                    sregfile_write_id   <= 0;
-                    sregfile_we         <= 1;
-
                     PSW <= 16'b1111000000000010;
 
                     // Reset queue
@@ -223,17 +217,6 @@ module v30mz
         end
         else
         begin
-            sregfile_we        <= 0;
-            eu_sreg_write_done <= 0;
-
-            // @todo: When is the segment register written by the execution
-            // unit? Can we make sure that the eu_sreg_* are assigned for at
-            // least 1 clock cycle? At least we know that sregfile_we is edge
-            // triggered and lasts for 1 clock cycle.
-            if(eu_sreg_we && !sregfile_we)
-            begin
-                eu_sreg_write_done <= 1;
-            end
 
             // Bus control unit
             if(!readyb)

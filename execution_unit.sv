@@ -18,7 +18,6 @@ module execution_unit
 
     // Segment register input and output
     input [15:0] segment_registers[0:3],
-    input sreg_write_done,
     output reg [15:0] sreg_write_data,
     output reg [1:0] sreg_write_id,
     output reg sreg_we,
@@ -58,8 +57,6 @@ module execution_unit
     wire need_imm;
     wire imm_size;
     wire disp_size;
-    wire [3:0] src;
-    wire [3:0] dst;
 
     // Effective address registers
     wire [3:0] ea_base_reg;
@@ -269,10 +266,11 @@ module execution_unit
     // Latched mov info for performing mov on next posedge clk.
     reg [2:0] reg_src;
     reg [2:0] reg_dst;
+
     // @important: mov_src_size and mov_dst_size should be the same!
     reg mov_src_size;
     reg mov_dst_size;
-    reg [1:0] mov_from; // 0,3: reg, 1: mem, 2: imm
+    reg [1:0] mov_from; // 0: reg, 1: mem, 2: imm, 3: sreg?
     // @todo: We should also latch the imm value, otherwise we're going to
     // have problems when we implement pipelining.
 
@@ -372,6 +370,10 @@ module execution_unit
             bus_command     <= BUS_COMMAND_IDLE;
             regfile_we      <= 0;
         end
+        else if(!read_write_wait)
+        begin
+            regfile_we <= 0;
+        end
 
         // * Handle move command *
 
@@ -470,6 +472,11 @@ module execution_unit
             microprogram_counter <= 0;
             PC                   <= 16'h0000;
             state                <= STATE_OPCODE_READ;
+
+            // @todo: Do we need to move these to always_latch?
+            sreg_write_data <= 16'hFFFF;
+            sreg_write_id   <= 0;
+            sreg_we         <= 1;
         end
         else
         begin
@@ -494,6 +501,8 @@ module execution_unit
 
             //     state <= next_state;
             // end
+
+            sreg_we <= 0;
 
             if(state <= STATE_IMM_HIGH_READ)
             begin
