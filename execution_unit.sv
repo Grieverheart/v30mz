@@ -18,9 +18,9 @@ module execution_unit
 
     // Segment register input and output
     input [15:0] segment_registers[0:3],
-    output reg [15:0] sreg_write_data,
-    output reg [1:0] sreg_write_id,
-    output reg sreg_we,
+    output [15:0] sregfile_write_data,
+    output [1:0] sregfile_write_id,
+    output reg sregfile_we,
 
     // Execution status
     output instruction_done,
@@ -258,6 +258,7 @@ module execution_unit
             translation_rom[{7'b1100011, i[0]}] = 9'd2;          // MOV imm -> rm
 
         translation_rom[8'b10001100] = 9'd1;                     // MOV sreg -> rm
+        translation_rom[8'b10001110] = 9'd0;                     // MOV rm -> sreg
 
     end
 
@@ -287,7 +288,7 @@ module execution_unit
     assign regfile_write_data_temp =
          (mov_from == 2'd1) ? data_in:
         ((mov_from == 2'd2) ? imm:
-                               reg_read);
+                              reg_read);
 
     assign regfile_write_id = (mov_src_size == 1) ? reg_dst: {1'd0, reg_dst[1:0]};
     assign regfile_write_data =
@@ -300,6 +301,9 @@ module execution_unit
                                    regfile_write_data_temp[7:0],
                                    registers[regfile_write_id][7:0]
                                });
+
+    assign sregfile_write_id   = reg_dst[1:0];
+    assign sregfile_write_data = regfile_write_data_temp;
 
     // Program counter
     // The PC is a 16-bit binary counter that holds the offset
@@ -340,7 +344,7 @@ module execution_unit
     (
         .physical_address(physical_address),
         .factors({ea_base_reg[3], ea_index_reg[3], &mod}),
-        .segment(segment_registers[ea_segment_reg]), // @todo: Get from segment registers.
+        .segment(segment_registers[ea_segment_reg]),
         .base(registers[ea_base_reg[2:0]]),
         .index(registers[ea_index_reg[2:0]]),
         .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
@@ -369,22 +373,29 @@ module execution_unit
 
     always_latch
     begin
-        if(reset || bus_command_done)
+
+        if(bus_command_done)
         begin
             read_write_wait <= 0;
             bus_command     <= BUS_COMMAND_IDLE;
             regfile_we      <= 0;
         end
-        else if(!read_write_wait)
+
+        if(!read_write_wait)
         begin
-            regfile_we <= 0;
+            regfile_we  <= 0;
+            sregfile_we <= 0;
+        end
+
+        if(reset)
+        begin
+            read_write_wait <= 0;
+            bus_command     <= BUS_COMMAND_IDLE;
+            regfile_we      <= 0;
+            sregfile_we     <= 0;
         end
 
         // * Handle move command *
-
-        // @todo: Handle segment registers separately.
-        // This depends on destination.
-
         if(state == STATE_EXECUTE)
         begin
             // ** Handle move source reading **
@@ -446,7 +457,10 @@ module execution_unit
                 // Destination is register specified by modrm.
                 reg_dst      <= dst_operand[2:0];
                 mov_dst_size <= byte_word_field;
-                regfile_we   <= 1;
+                if(dst_operand[3])
+                    sregfile_we <= 1;
+                else
+                    regfile_we  <= 1;
             end
             else
             begin
@@ -477,11 +491,6 @@ module execution_unit
             microprogram_counter <= 0;
             PC                   <= 16'h0000;
             state                <= STATE_OPCODE_READ;
-
-            // @todo: Do we need to move these to always_latch?
-            sreg_write_data <= 16'hFFFF;
-            sreg_write_id   <= 0;
-            sreg_we         <= 1;
         end
         else
         begin
@@ -506,8 +515,6 @@ module execution_unit
 
             //     state <= next_state;
             // end
-
-            sreg_we <= 0;
 
             if(state <= STATE_IMM_HIGH_READ)
             begin

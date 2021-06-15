@@ -426,16 +426,16 @@ module decode
                 src        <= { 1'b0, srcm };
             end
 
-            8'b1000_11?0: // MOV R/M sreg (@todo)
+            8'b1000_11?0: // MOV R/M sreg (@todo: handle sreg correctly)
             begin
                 need_modrm <= 1;
                 need_imm   <= 0;
                 imm_size   <= 0;
-                src        <= { 1'b1, srcm };
+                src        <= { ~opcode[1], srcm };
                 if(mod == 2'b11)
                 begin
                     need_disp  <= 0;
-                    dst        <= { 1'b0, dstm };
+                    dst        <= { opcode[1], dstm };
                 end
                 else
                 begin

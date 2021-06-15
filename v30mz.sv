@@ -88,7 +88,7 @@ module v30mz
     // @note: For now, only the execution unit can write to this register
     // file. I don't see any reason for the bus control unit needing to write
     // to the segment registers.
-    register_file#(4) segment_register_file_inst
+    segment_register_file segment_register_file_inst
     (
         .clk(clk),
         .reset(resetn),
@@ -170,9 +170,9 @@ module v30mz
         // Segment register input and output
         .segment_registers(segment_registers),
 
-        .sreg_write_data(eu_sreg_write_data),
-        .sreg_write_id(eu_sreg_write_id),
-        .sreg_we(eu_sreg_we),
+        .sregfile_write_data(eu_sreg_write_data),
+        .sregfile_write_id(eu_sreg_write_id),
+        .sregfile_we(eu_sreg_we),
 
         .instruction_done(instruction_done),
         .instruction_nearly_done(instruction_nearly_done),
@@ -194,16 +194,18 @@ module v30mz
     begin
         if(reset)
         begin
-            reset_counter <= reset_counter + 1;
             if(reset_counter == 2'd3)
             begin
                 bus_status       <= 4'hf;
                 PSW              <= 16'b1111000000000010;
                 prefetch_request <= 0;
             end
+            else
+                reset_counter <= reset_counter + 1;
         end
         else
         begin
+            reset_counter <= 0;
 
             // Bus control unit
             if(!readyb)
