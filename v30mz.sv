@@ -113,8 +113,9 @@ module v30mz
 
     wire [15:0] PFP;
 
-    wire resetn = (reset_counter == 0);
     reg [1:0] reset_counter;
+    wire resetn = (reset_counter == 2'd3);
+
     assign address_out =
         (resetn)?
             20'hfffff:
@@ -189,30 +190,16 @@ module v30mz
     assign queue_push = (!resetn && prefetch_request && !readyb)? 1: 0;
 
     // @todo: Move some things to always_latch.
-    reg reset_initiated;
     always_ff @ (posedge clk)
     begin
         if(reset)
         begin
-            if(!reset_initiated)
+            reset_counter <= reset_counter + 1;
+            if(reset_counter == 2'd3)
             begin
-                reset_initiated = 1'b1;
-            end
-            else
-            begin
-                if(reset_counter != 0)
-                    reset_counter <= reset_counter - 1;
-                else
-                begin
-                    reset_counter <= 2'd3;
-
-                    bus_status <= 4'hf;
-
-                    PSW <= 16'b1111000000000010;
-
-                    // Reset queue
-                    prefetch_request <= 0;
-                end
+                bus_status       <= 4'hf;
+                PSW              <= 16'b1111000000000010;
+                prefetch_request <= 0;
             end
         end
         else
