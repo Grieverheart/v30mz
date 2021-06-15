@@ -17,10 +17,11 @@ module execution_unit
     output queue_pop,
 
     // Segment register input and output
-    // @todo: We need to be able to read and write to the segment registers.
-    // We know these take an additional cycle because they have to go to the
-    // BCU.
     input [15:0] segment_registers[0:3],
+    input sreg_write_done,
+    output reg [15:0] sreg_write_data,
+    output reg [1:0] sreg_write_id,
+    output reg sreg_we,
 
     // Execution status
     output instruction_done,

@@ -16,7 +16,7 @@ module register_file
     begin
         if(reset)
         begin
-            for(int i = 0; i < 8; ++i)
+            for(int i = 0; i < NUM_REGISTERS; ++i)
                 registers[i] <= 16'd0;
         end
         else

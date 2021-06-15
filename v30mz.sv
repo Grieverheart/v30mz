@@ -83,14 +83,27 @@ module v30mz
     // 4 kinds of segment (program, stack, data 0, data 1). The
     // start address of each segment is specified by the following
     // 4 segment registers.
-    reg [15:0] PS, SS, DS0, DS1;
-
-    //  @todo: Use a proper register file.
     wire [15:0] segment_registers[0:3];
-    assign segment_registers[0] = PS;
-    assign segment_registers[1] = SS;
-    assign segment_registers[2] = DS0;
-    assign segment_registers[3] = DS1;
+    reg sregfile_we;
+    reg [15:0] sregfile_write_data;
+    reg [1:0] sregfile_write_id;
+
+    register_file#(4) segment_register_file_inst
+    (
+        .clk(clk),
+        .reset(resetn),
+
+        .we(sregfile_we || eu_sreg_we),
+        .write_id(sregfile_we ? sregfile_write_id: eu_sreg_write_id),
+        .write_data(sregfile_we ? sregfile_write_data: eu_sreg_write_data),
+
+        .registers(segment_registers)
+    );
+
+    wire [15:0] PS  = segment_registers[0];
+    wire [15:0] SS  = segment_registers[1];
+    wire [15:0] DS0 = segment_registers[2];
+    wire [15:0] DS1 = segment_registers[3];
 
     // Program status word
     // The PSW consists of 6 kinds of status flag and 4 kinds of
@@ -100,9 +113,10 @@ module v30mz
 
     wire [15:0] PFP;
 
+    wire resetn = (reset_counter == 0);
     reg [1:0] reset_counter;
     assign address_out =
-        (reset_counter == 0)?
+        (resetn)?
             20'hfffff:
         (eu_bus_command != BUS_COMMAND_IDLE && !prefetch_request)?
             eu_bus_address:
@@ -119,7 +133,7 @@ module v30mz
     prefetch_queue prefetch_inst
     (
         .clk(clk),
-        .reset(reset_counter == 0),
+        .reset(resetn),
         .pop(queue_pop),
         .push(queue_push),
         .data_in(data_in),
@@ -137,10 +151,16 @@ module v30mz
     wire [1:0]  eu_bus_command;
     wire [19:0] eu_bus_address;
 
+    // @todo: Use these.
+    wire [1:0]  eu_sreg_write_id;
+    wire [15:0] eu_sreg_write_data;
+    wire eu_sreg_we;
+    reg eu_sreg_write_done;
+
     execution_unit execution_unit_inst
     (
         .clk(clk),
-        .reset(reset_counter == 0),
+        .reset(resetn),
 
         // Prefetch queue
         .prefetch_data(prefetch_data),
@@ -149,6 +169,11 @@ module v30mz
 
         // Segment register input and output
         .segment_registers(segment_registers),
+
+        .sreg_write_done(eu_sreg_write_done),
+        .sreg_write_data(eu_sreg_write_data),
+        .sreg_write_id(eu_sreg_write_id),
+        .sreg_we(eu_sreg_we),
 
         .instruction_done(instruction_done),
         .instruction_nearly_done(instruction_nearly_done),
@@ -163,8 +188,9 @@ module v30mz
         .bus_command_done((prefetch_request || queue_push)? 0: !readyb)
     );
 
-    assign queue_push = ((reset_counter > 0) && prefetch_request && !readyb)? 1: 0;
+    assign queue_push = (!resetn && prefetch_request && !readyb)? 1: 0;
 
+    // @todo: Move some things to always_latch.
     reg reset_initiated;
     always_ff @ (posedge clk)
     begin
@@ -184,10 +210,10 @@ module v30mz
 
                     bus_status <= 4'hf;
 
-                    PS  <= 16'hFFFF;
-                    SS  <= 16'h0000;
-                    DS0 <= 16'h0000;
-                    DS1 <= 16'h0000;
+                    sregfile_write_data <= 16'hFFFF;
+                    sregfile_write_id   <= 0;
+                    sregfile_we         <= 1;
+
                     PSW <= 16'b1111000000000010;
 
                     // Reset queue
@@ -197,6 +223,18 @@ module v30mz
         end
         else
         begin
+            sregfile_we        <= 0;
+            eu_sreg_write_done <= 0;
+
+            // @todo: When is the segment register written by the execution
+            // unit? Can we make sure that the eu_sreg_* are assigned for at
+            // least 1 clock cycle? At least we know that sregfile_we is edge
+            // triggered and lasts for 1 clock cycle.
+            if(eu_sreg_we && !sregfile_we)
+            begin
+                eu_sreg_write_done <= 1;
+            end
+
             // Bus control unit
             if(!readyb)
             begin
