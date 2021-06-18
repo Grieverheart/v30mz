@@ -416,32 +416,24 @@ module decode
                 src        <= { 1'b0, srcm };
             end
 
-            8'b1000_10??: // MOV R/M R (@todo: missing mod=11)
+            8'b1000_10??: // MOV R/M R
             begin
                 need_modrm <= 1;
-                need_disp  <= need_disp_mod;
                 need_imm   <= 0;
                 imm_size   <= 0;
                 dst        <= { 1'b0, dstm };
                 src        <= { 1'b0, srcm };
+                need_disp  <= (mod == 2'b11) ? 0: need_disp_mod;
             end
 
-            8'b1000_11?0: // MOV R/M sreg (@todo: handle sreg correctly)
+            8'b1000_11?0: // MOV R/M sreg
             begin
                 need_modrm <= 1;
                 need_imm   <= 0;
                 imm_size   <= 0;
                 src        <= { ~opcode[1], srcm };
-                if(mod == 2'b11)
-                begin
-                    need_disp  <= 0;
-                    dst        <= { opcode[1], dstm };
-                end
-                else
-                begin
-                    need_disp  <= need_disp_mod;
-                    dst        <= 0;
-                end
+                dst        <= {  opcode[1], dstm };
+                need_disp  <= (mod == 2'b11) ? 0: need_disp_mod;
             end
 
             8'b1000_1101: // LDEA R M (@todo: missing mod=11)

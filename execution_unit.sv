@@ -539,8 +539,7 @@ module execution_unit
                 if(!queue_empty)
                 begin
                     // Get instruction from queue_buffer if it's not empty.
-                    if(state == STATE_OPCODE_READ)
-                        PC <= PC + 1;
+                    PC <= PC + 1;
                     state <= next_state;
                 end
             end

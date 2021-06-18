@@ -18,6 +18,9 @@ int main(int argc, char** argv, char** env)
 
     uint8_t instructions[] = 
     {
+        0x8e,0x08,  // mov rm->s
+        0x8e,0x10,  // mov rm->s
+
         0xb9,      // mov i->r
         0xef,0xbe, // imm
 
@@ -42,7 +45,7 @@ int main(int argc, char** argv, char** env)
 
     int timestamp = 0;
     bool data_sent = false;
-    while (timestamp < 50 && !Verilated::gotFinish())
+    while (timestamp < 100 && !Verilated::gotFinish())
     {
         v30mz->clk = 0;
         v30mz->eval();
@@ -63,6 +66,9 @@ int main(int argc, char** argv, char** env)
         }
         if(v30mz->bus_status == 0x9)
         {
+            // @todo: We should use address_out to get the correct memory
+            // address. Unfortunately, I am currently using instructions that
+            // modify the PS.
             v30mz->data_in = (v30mz->address_out == 0)?
                 0xbeef:
                 *(uint16_t*)(instructions + 2*mem_counter++);

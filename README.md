@@ -4,7 +4,7 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # TODO
 
-* Test mov sreg->m, mov m->sreg.
 * Implement alu and microinstruction handling.
+* Implement branching microinstruction.
 * Implement microassembler.
 * Implement pipelining by decoupling the execution state.
