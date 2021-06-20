@@ -38,7 +38,7 @@ module decode
     output reg need_modrm,
 
     output reg need_disp,
-    output reg disp_size, // 0 -> 8bit, 1 -> 16bit
+    output disp_size, // 0 -> 8bit, 1 -> 16bit
 
     output reg need_imm,
     output reg imm_size,  // 0 -> 8bit, 1 -> 16bit
@@ -56,8 +56,6 @@ module decode
     output [1:0] seg
 );
 
-    wire need_disp_mod, disp_size_mod;
-
     wire [2:0] dstm, srcm;
     wire [1:0] mod;
     wire [2:0] rm, regm;
@@ -69,8 +67,11 @@ module decode
     assign dstm = opcode[1]? regm: rm;
     assign srcm = opcode[1]? rm: regm;
 
-    assign need_disp_mod = (rm == 3'b110 && mod == 0) || ^mod;
-    assign disp_size_mod = (rm == 3'b110 && mod == 0)? 1: mod[1];
+    wire need_disp_mod = (rm == 3'b110 && mod == 0) || ^mod;
+    // @note: Note sure if I like this approach.
+    wire disp_size_mod = (rm == 3'b110 && mod == 0)? 1: mod[1];
+    wire disp_size_from_mod = !opcode[7] | (!opcode[5] & !opcode[4]) | (opcode[6] & opcode[4]);
+    assign disp_size = !disp_size_from_mod | disp_size_mod;
 
     assign byte_word_field =
         (opcode[7:4] != 4'b1011 && opcode[7:2] != 6'b100011)? opcode[0]: opcode[3];
@@ -632,6 +633,16 @@ module decode
                 need_disp  <= need_disp_mod;
                 need_imm   <= 1;
                 imm_size   <= 0;
+                dst        <= 0;
+                src        <= 0;
+            end
+
+            8'b1110_1010: // BR far-label
+            begin
+                need_modrm <= 0;
+                need_disp  <= 1;
+                need_imm   <= 1;
+                imm_size   <= 1;
                 dst        <= 0;
                 src        <= 0;
             end

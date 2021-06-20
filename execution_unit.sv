@@ -6,6 +6,10 @@ enum [1:0]
     BUS_COMMAND_WRITE = 2'd2
 } BusCommand;
 
+// @todo: The 8086 has a SUSP microcode action that suspends prefetching.
+// That's nice, and we could also try to implement it. We probably need to
+// clear SUSP whenever we flush the prefetch queue.
+
 module execution_unit
 (
     input clk,
@@ -15,6 +19,12 @@ module execution_unit
     input [7:0] prefetch_data,
     input queue_empty,
     output queue_pop,
+
+    // Program counter
+    // The PC is a 16-bit binary counter that holds the offset
+    // information of the memory address of the program that the
+    // execution unit (EXU) is about to execute.
+    output reg [15:0] PC,
 
     // Segment register input and output
     input [15:0] segment_registers[0:3],
@@ -43,6 +53,14 @@ module execution_unit
         STATE_IMM_LOW_READ   = 3'd4,
         STATE_IMM_HIGH_READ  = 3'd5,
         STATE_EXECUTE        = 3'd6;
+
+    localparam [2:0]
+        READ_SRC_REG  = 3'd0,
+        READ_SRC_SREG = 3'd1,
+        READ_SRC_PC   = 3'd2,
+        READ_SRC_IMM  = 3'd3,
+        READ_SRC_DISP = 3'd4,
+        READ_SRC_MEM  = 3'd5;
 
     reg [7:0] opcode;
     reg [7:0] modrm;
@@ -157,47 +175,43 @@ module execution_unit
     reg [21:0] rom[0:511];
 
     localparam [4:0]
-        micro_mov_none = 5'h00,
+        MICRO_MOV_NONE = 5'h00,
         // register specified by r field of modrm.
-        micro_mov_r    = 5'h01,
+        MICRO_MOV_R    = 5'h01,
         // register or memory specified by rm field of modrm.
-        micro_mov_rm   = 5'h02,
+        MICRO_MOV_RM   = 5'h02,
+        // disp value specified by opcode bytes. Cannot be destination.
+        MICRO_MOV_DISP = 5'h03,
         // imm value specified by opcode bytes. Cannot be destination.
-        micro_mov_imm  = 5'h03,
+        MICRO_MOV_IMM  = 5'h04,
 
         // all registers:
-        micro_mov_al   = 5'h04,
-        //micro_mov_cl   = 5'h05,
-        //micro_mov_dl   = 5'h06,
-        //micro_mov_bl   = 5'h07,
+        MICRO_MOV_AL   = 5'h05,
+        MICRO_MOV_AH   = 5'h09,
 
-        micro_mov_ah   = 5'h08,
-        //micro_mov_ch   = 5'h09,
-        //micro_mov_dh   = 5'h0a,
-        //micro_mov_bh   = 5'h0b,
+        MICRO_MOV_AW   = 5'h0c,
+        MICRO_MOV_CW   = 5'h0d,
+        MICRO_MOV_DW   = 5'h0e,
+        MICRO_MOV_BW   = 5'h0f,
 
-        micro_mov_aw   = 5'h0c,
-        micro_mov_cw   = 5'h0d,
-        micro_mov_dw   = 5'h0e,
-        micro_mov_bw   = 5'h0f,
+        MICRO_MOV_SP   = 5'h10,
+        MICRO_MOV_BP   = 5'h11,
+        MICRO_MOV_IX   = 5'h12,
+        MICRO_MOV_IY   = 5'h13,
 
-        micro_mov_sp   = 5'h10,
-        micro_mov_bp   = 5'h11,
-        micro_mov_ix   = 5'h12,
-        micro_mov_iy   = 5'h13,
+        MICRO_MOV_PS   = 5'h14,
+        MICRO_MOV_SS   = 5'h15,
+        MICRO_MOV_DS0  = 5'h16,
+        MICRO_MOV_DS1  = 5'h17,
 
-        micro_mov_es   = 5'h14,
-        micro_mov_cs   = 5'h15,
-        micro_mov_ss   = 5'h16,
-        micro_mov_ds   = 5'h17;
+        MICRO_MOV_PC   = 5'h18;
 
         // @note: Still need these, I think:
-        //     micro_mov_psw  = 5'h18,
-        //     micro_mov_ea   = 5'h19,
-        //     micro_mov_pc   = 5'h1a,
-        //     micro_mov_alur = 5'h1b,
-        //     micro_mov_alux = 5'h1c,
-        //     micro_mov_aluy = 5'h1d,
+        //     MICRO_MOV_PSW  = 5'h18,
+        //     MICRO_MOV_EA   = 5'h19,
+        //     MICRO_MOV_ALUR = 5'h1a,
+        //     MICRO_MOV_ALUX = 5'h1b,
+        //     MICRO_MOV_ALUY = 5'h1c,
         //
         // The 8086 microcode seems to even introduce some temporary registers
         // and does not explicitly use the upper and lower half of the
@@ -205,7 +219,7 @@ module execution_unit
         // for dst are used. The combined src and dst refer to a combined 33
         // unique values, so a common coding for both is not possible with 5
         // bits. I think it's best to encode the common ones, and for the
-        // others, introduce combination values, e.g. micro_mov_es_or_sigma.
+        // others, introduce combination values, e.g. MICRO_MOV_ES_OR_SIGMA.
         // This brings the number of unique values to about 25. The move src
         // never seems to refer to bw, and bp, though. If I add them to the
         // common registers, it would increase them to 21. I could do the same
@@ -235,13 +249,21 @@ module execution_unit
         // 12:21; type, a, b
 
         //        type,   a/b,  nl/nx, destination,  source
-        rom[0] = {3'b001, 7'd0, 2'b10, micro_mov_r,  micro_mov_rm};
-        rom[1] = {3'b001, 7'd0, 2'b10, micro_mov_rm, micro_mov_r};
-        rom[2] = {3'b001, 7'd0, 2'b10, micro_mov_rm, micro_mov_imm};
-        // @todo: implement nop
-        // rom[3] = {3'b001, 7'd0, 2'b10, micro_mov_none, micro_mov_none};
+        rom[0] = {3'b001, 7'd0, 2'b10, MICRO_MOV_R,  MICRO_MOV_RM};
+        rom[1] = {3'b001, 7'd0, 2'b10, MICRO_MOV_RM, MICRO_MOV_R};
+        rom[2] = {3'b001, 7'd0, 2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
 
-        for (int i = 3; i < 512; i++)
+        // BR far_label
+        rom[3] = {3'b001, 7'd0, 2'b00, MICRO_MOV_PS, MICRO_MOV_DISP};
+        rom[4] = {3'b101, 7'd0, 2'b10, MICRO_MOV_PC, MICRO_MOV_IMM}; // jump micro here.
+
+        // mov -> ps:  2 cycles
+        // mov -> pc and jump/flush:  1 cycles?
+
+        // @todo: implement nop
+        // rom[3] = {3'b001, 7'd0, 2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+
+        for (int i = 5; i < 512; i++)
             rom[i] = 0;
 
         for (int i = 0; i < 256; i++)
@@ -259,6 +281,7 @@ module execution_unit
 
         translation_rom[8'b10001100] = 9'd1;                     // MOV sreg -> rm
         translation_rom[8'b10001110] = 9'd0;                     // MOV rm -> sreg
+        translation_rom[8'b11101010] = 9'd3;                     // BR far_label
 
     end
 
@@ -275,20 +298,22 @@ module execution_unit
     // @important: mov_src_size and mov_dst_size should be the same!
     reg mov_src_size;
     reg mov_dst_size;
-    reg [1:0] mov_from; // 0: reg, 1: mem, 2: imm, 3: sreg?
+    reg [2:0] mov_from;
     // @todo: We should also latch the imm value, otherwise we're going to
     // have problems when we implement pipelining.
 
     wire [15:0] reg_read = 
-         (mov_from == 2'd3)  ? segment_registers[reg_src[1:0]]:
+         (mov_from == READ_SRC_SREG)  ? segment_registers[reg_src[1:0]]:
+        ((mov_from == READ_SRC_PC) ? PC:
         ((mov_src_size == 1) ? registers[reg_src]:
         ((reg_src[2]   == 0) ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
-                               {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]}));
+                               {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]})));
 
     assign regfile_write_data_temp =
-         (mov_from == 2'd1) ? data_in:
-        ((mov_from == 2'd2) ? imm:
-                              reg_read);
+         (mov_from == READ_SRC_MEM)  ? data_in:
+        ((mov_from == READ_SRC_IMM)  ? imm:
+        ((mov_from == READ_SRC_DISP) ? disp:
+                                       reg_read));
 
     assign regfile_write_id = (mov_src_size == 1) ? reg_dst: {1'd0, reg_dst[1:0]};
     assign regfile_write_data =
@@ -304,12 +329,6 @@ module execution_unit
 
     assign sregfile_write_id   = reg_dst[1:0];
     assign sregfile_write_data = regfile_write_data_temp;
-
-    // Program counter
-    // The PC is a 16-bit binary counter that holds the offset
-    // information of the memory address of the program that the
-    // execution unit (EXU) is about to execute.
-    reg [15:0] PC;
 
     // The register file holds the following registers
     //
@@ -399,51 +418,66 @@ module execution_unit
         if(state == STATE_EXECUTE)
         begin
             // ** Handle move source reading **
-            if(micro_mov_src == micro_mov_rm && mod != 2'b11)
+            if(micro_mov_src == MICRO_MOV_RM && mod != 2'b11)
             begin
                 // Source is memory
                 bus_address     <= physical_address;
                 bus_command     <= BUS_COMMAND_READ;
                 read_write_wait <= 1;
 
-                mov_from     <= 2'b01;
+                mov_from     <= READ_SRC_MEM;
                 mov_src_size <= byte_word_field;
             end
-            else if(micro_mov_src == micro_mov_rm || micro_mov_src == micro_mov_r)
+            else if(micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R)
             begin
                 // Source is register specified by modrm.
                 reg_src      <= src_operand[2:0];
-                mov_from     <= src_operand[3]? 2'd3: 2'd0;
+                mov_from     <= src_operand[3]? READ_SRC_SREG: READ_SRC_REG;
                 mov_src_size <= byte_word_field;
             end
-            else if(micro_mov_src == micro_mov_imm)
+            else if(micro_mov_src == MICRO_MOV_IMM)
             begin
                 // Source is immediate.
-                mov_from  <= 2'b10;
+                mov_from  <= READ_SRC_IMM;
                 mov_src_size <= imm_size;
             end
-            else
+            else if(micro_mov_src == MICRO_MOV_DISP)
             begin
-                // Source is register specified by micro_op.
-                if(micro_mov_src >= micro_mov_aw)
+                // @todo:
+                // Source is immediate.
+                mov_from  <= READ_SRC_DISP;
+                mov_src_size <= disp_size;
+            end
+            else if(micro_mov_src >= MICRO_MOV_AW)
+            begin
+                // Source is word register
+                mov_src_size  <= 1;
+                if(micro_mov_src  == MICRO_MOV_PC)
                 begin
-                    // Source is word register
-                    reg_src <= {micro_mov_src[3], micro_mov_src[1:0]};
-                    mov_src_size  <= 1;
+                    mov_from <= READ_SRC_PC;
+                    reg_src  <= 0;
+                end
+                else if(micro_mov_src >= MICRO_MOV_PS)
+                begin
+                    mov_from <= READ_SRC_SREG;
+                    reg_src  <= {micro_mov_src - MICRO_MOV_PS}[2:0];
                 end
                 else
                 begin
-                    // Source is byte register
-                    reg_src <= micro_mov_src[2:0];
-                    mov_src_size  <= 0;
+                    mov_from <= READ_SRC_REG;
+                    reg_src  <= {micro_mov_src - MICRO_MOV_AW}[2:0];
                 end
-
-                mov_from <= 2'b00;
+            end
+            else
+            begin
+                // Source is byte register
+                reg_src <= {micro_mov_src - MICRO_MOV_AL}[2:0];
+                mov_src_size <= 0;
             end
 
 
             // ** Handle move destination writing **
-            if(micro_mov_dst == micro_mov_rm && need_modrm && mod != 2'b11)
+            if(micro_mov_dst == MICRO_MOV_RM && need_modrm && mod != 2'b11)
             begin
                 // Destination is memory
                 bus_address     <= physical_address;
@@ -452,7 +486,7 @@ module execution_unit
 
                 mov_dst_size <= byte_word_field;
             end
-            else if((micro_mov_dst == micro_mov_rm) || (micro_mov_dst == micro_mov_r))
+            else if((micro_mov_dst == MICRO_MOV_RM) || (micro_mov_dst == MICRO_MOV_R))
             begin
                 // Destination is register specified by modrm.
                 reg_dst      <= dst_operand[2:0];
@@ -462,24 +496,33 @@ module execution_unit
                 else
                     regfile_we  <= 1;
             end
-            else
+            else if(micro_mov_dst >= MICRO_MOV_AW)
             begin
-                // Destination is register specified by micro_op.
-                regfile_we <= 1;
+                // Destination is word register
+                mov_dst_size  <= 1;
 
-                if(micro_mov_dst >= micro_mov_aw)
+                if(micro_mov_dst == MICRO_MOV_PC)
                 begin
-                    // Destination is word register
-                    reg_dst <= {micro_mov_dst[3], micro_mov_dst[1:0]};
-                    mov_dst_size <= 1;
+                    // @note: Assume we are always moving from word registers.
+                    reg_dst <= 0;
+                end
+                else if(micro_mov_dst >= MICRO_MOV_PS)
+                begin
+                    sregfile_we <= 1;
+                    reg_dst     <= {micro_mov_dst - MICRO_MOV_PS}[2:0];
                 end
                 else
                 begin
-                    // Destination is byte register
-                    reg_dst <= micro_mov_dst[2:0];
-                    mov_dst_size <= 0;
+                    regfile_we <= 1;
+                    reg_dst    <= {micro_mov_dst - MICRO_MOV_AW}[2:0];
                 end
-
+            end
+            else
+            begin
+                // Destination is byte register
+                regfile_we   <= 1;
+                reg_dst      <= {micro_mov_dst - MICRO_MOV_AL}[2:0];
+                mov_dst_size <= 0;
             end
         end
     end
@@ -547,6 +590,9 @@ module execution_unit
             else if(!read_write_wait || bus_command_done)
             begin
                 state <= next_state;
+
+                if(micro_mov_dst == MICRO_MOV_PC)
+                    PC <= regfile_write_data_temp;
 
                 microprogram_counter <= (instruction_done == 1) ? 0: microprogram_counter + 1;
 

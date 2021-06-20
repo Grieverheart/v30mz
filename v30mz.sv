@@ -145,6 +145,8 @@ module v30mz
         .full(queue_full)
     );
 
+    wire [15:0] PC;
+
     wire instruction_done;
     wire instruction_nearly_done;
 
@@ -166,6 +168,8 @@ module v30mz
         .prefetch_data(prefetch_data),
         .queue_empty(queue_empty),
         .queue_pop(queue_pop),
+
+        .PC(PC),
 
         // Segment register input and output
         .segment_registers(segment_registers),

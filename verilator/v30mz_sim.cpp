@@ -18,6 +18,10 @@ int main(int argc, char** argv, char** env)
 
     uint8_t instructions[] = 
     {
+        0xea,       // BR far-label
+        0xef,0xbe,  // disp
+        0xce,0xfa,  // imm
+
         0x8e,0x08,  // mov rm->s
         0x8e,0x10,  // mov rm->s
 
