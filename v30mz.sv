@@ -130,6 +130,7 @@ module v30mz
     wire queue_empty;
     wire queue_pop;
     wire queue_push;
+    wire queue_suspend;
     wire queue_flush;
     wire [15:0] PC;
 
@@ -170,6 +171,7 @@ module v30mz
         .prefetch_data(prefetch_data),
         .queue_empty(queue_empty),
         .queue_pop(queue_pop),
+        .queue_suspend(queue_suspend),
         .queue_flush(queue_flush),
 
         .PC(PC),
@@ -231,7 +233,7 @@ module v30mz
                     bus_status <= 4'b1010;
 
                 // Prefetch instruction if not full, or waiting for memory.
-                else if((eu_bus_command == BUS_COMMAND_IDLE) && !queue_full)
+                else if((eu_bus_command == BUS_COMMAND_IDLE) && !queue_full && !queue_suspend)
                 begin
                     prefetch_request <= 1;
                     bus_status       <= 4'b1001;

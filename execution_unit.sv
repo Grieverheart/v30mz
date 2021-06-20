@@ -19,6 +19,7 @@ module execution_unit
     input [7:0] prefetch_data,
     input queue_empty,
     output queue_pop,
+    output queue_suspend,
     output queue_flush,
 
     // Program counter
