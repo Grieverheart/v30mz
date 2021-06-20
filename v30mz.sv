@@ -130,13 +130,17 @@ module v30mz
     wire queue_empty;
     wire queue_pop;
     wire queue_push;
+    wire queue_flush;
+    wire [15:0] PC;
+
 
     prefetch_queue prefetch_inst
     (
         .clk(clk),
-        .reset(resetn),
+        .reset(resetn | queue_flush),
         .pop(queue_pop),
         .push(queue_push),
+        .PC(PC),
         .data_in(data_in),
 
         .PFP(PFP),
@@ -144,8 +148,6 @@ module v30mz
         .empty(queue_empty),
         .full(queue_full)
     );
-
-    wire [15:0] PC;
 
     wire instruction_done;
     wire instruction_nearly_done;
@@ -168,6 +170,7 @@ module v30mz
         .prefetch_data(prefetch_data),
         .queue_empty(queue_empty),
         .queue_pop(queue_pop),
+        .queue_flush(queue_flush),
 
         .PC(PC),
 

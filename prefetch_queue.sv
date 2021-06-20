@@ -5,6 +5,7 @@ module prefetch_queue
     input reset,
     input pop,
     input push,
+    input [15:0] PC,
     input [15:0] data_in,
 
     // @todo: Add arguments for writing PFP, i.e. to set it to a new location
@@ -28,7 +29,7 @@ module prefetch_queue
     begin
         if(reset)
         begin
-            PFP <= 16'h0000;
+            PFP       <= PC;
             write_idx <= 0;
         end
         else

@@ -19,6 +19,7 @@ module execution_unit
     input [7:0] prefetch_data,
     input queue_empty,
     output queue_pop,
+    output queue_flush,
 
     // Program counter
     // The PC is a 16-bit binary counter that holds the offset
