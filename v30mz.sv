@@ -216,28 +216,24 @@ module v30mz
         begin
             reset_counter <= 0;
 
-            // Bus control unit
-            if(!readyb)
+            // Finish prefetch before taking care of other r/w requests.
+            if(prefetch_request && !readyb)
             begin
-                // Finish prefetch before taking care of other r/w requests.
-                if(prefetch_request)
-                begin
-                    prefetch_request <= 0;
-                    bus_status       <= 4'hf;
-                end
+                prefetch_request <= 0;
+                bus_status       <= 4'hf;
+            end
 
-                if(eu_bus_command == BUS_COMMAND_READ)
-                    bus_status <= 4'b1001;
+            if(eu_bus_command == BUS_COMMAND_READ)
+                bus_status <= 4'b1001;
 
-                else if(eu_bus_command == BUS_COMMAND_WRITE)
-                    bus_status <= 4'b1010;
+            else if(eu_bus_command == BUS_COMMAND_WRITE)
+                bus_status <= 4'b1010;
 
-                // Prefetch instruction if not full, or waiting for memory.
-                else if((eu_bus_command == BUS_COMMAND_IDLE) && !queue_full && !queue_suspend)
-                begin
-                    prefetch_request <= 1;
-                    bus_status       <= 4'b1001;
-                end
+            // Prefetch instruction if not full, or waiting for memory.
+            else if((eu_bus_command == BUS_COMMAND_IDLE) && !queue_full && !queue_suspend)
+            begin
+                prefetch_request <= 1;
+                bus_status       <= 4'b1001;
             end
 
         end

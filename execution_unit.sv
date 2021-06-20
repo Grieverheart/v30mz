@@ -19,8 +19,8 @@ module execution_unit
     input [7:0] prefetch_data,
     input queue_empty,
     output queue_pop,
-    output queue_suspend,
-    output queue_flush,
+    output reg queue_suspend,
+    output reg queue_flush,
 
     // Program counter
     // The PC is a 16-bit binary counter that holds the offset
@@ -63,6 +63,10 @@ module execution_unit
         READ_SRC_IMM  = 3'd3,
         READ_SRC_DISP = 3'd4,
         READ_SRC_MEM  = 3'd5;
+
+    //localparam [2:0]
+    //    LJUMP_COND_UNC = 3'd0,
+    //        ...
 
     reg [7:0] opcode;
     reg [7:0] modrm;
@@ -208,6 +212,14 @@ module execution_unit
 
         MICRO_MOV_PC   = 5'h18;
 
+    localparam [3:0]
+        MICRO_MISC_OP_A_NONE  = 4'h0,
+        MICRO_MISC_OP_A_FLUSH = 4'h1;
+
+    localparam [2:0]
+        MICRO_MISC_OP_B_NONE  = 3'h0,
+        MICRO_MISC_OP_B_SUSP  = 3'h1;
+
         // @note: Still need these, I think:
         //     MICRO_MOV_PSW  = 5'h18,
         //     MICRO_MOV_EA   = 5'h19,
@@ -250,14 +262,14 @@ module execution_unit
         // 11; last (nl)
         // 12:21; type, a, b
 
-        //        type,   a/b,  nl/nx, destination,  source
-        rom[0] = {3'b001, 7'd0, 2'b10, MICRO_MOV_R,  MICRO_MOV_RM};
-        rom[1] = {3'b001, 7'd0, 2'b10, MICRO_MOV_RM, MICRO_MOV_R};
-        rom[2] = {3'b001, 7'd0, 2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
+        //        type,   b,                    b                      nl/nx, destination,  source
+        rom[0] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_R,  MICRO_MOV_RM};
+        rom[1] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_R};
+        rom[2] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
 
         // BR far_label
-        rom[3] = {3'b001, 7'd0, 2'b00, MICRO_MOV_PS, MICRO_MOV_DISP};
-        rom[4] = {3'b101, 7'd0, 2'b10, MICRO_MOV_PC, MICRO_MOV_IMM}; // jump micro here.
+        rom[3] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_PS, MICRO_MOV_DISP};
+        rom[4] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC, MICRO_MOV_IMM};
 
         // mov -> ps:  2 cycles
         // mov -> pc and jump/flush:  1 cycles?
@@ -391,6 +403,13 @@ module execution_unit
 
     assign instruction_nearly_done = micro_op[10];
     assign instruction_done = micro_op[11];
+
+    wire [3:0] micro_misc_op_a = micro_op[15:12];
+    wire [2:0] micro_misc_op_b = micro_op[18:16];
+    wire [2:0] micro_op_type   = micro_op[21:19];
+
+    //assign queue_flush   = (micro_op_type == 3'b001) && (micro_misc_op_a == MICRO_MISC_OP_A_FLUSH);
+    //assign queue_suspend = (micro_op_type == 3'b001) && (micro_misc_op_b == MICRO_MISC_OP_B_SUSP);
 
     always_latch
     begin
@@ -539,6 +558,8 @@ module execution_unit
         end
         else
         begin
+            queue_flush   <= 0;
+            queue_suspend <= 0;
 
             // @todo: Allow reading when instruction is done or nearly done.
             // Perhaps we can achieve this by removing the execute state,
@@ -581,7 +602,7 @@ module execution_unit
                 // updated on the positive edge of the clock anyway?
 
                 // Make sure the queue is not empty at any of the read states.
-                if(!queue_empty)
+                if(!queue_empty && !queue_flush)
                 begin
                     // Get instruction from queue_buffer if it's not empty.
                     PC <= PC + 1;
@@ -603,7 +624,7 @@ module execution_unit
                 // microcode instructions. Certain jumps were introduced in
                 // 8086 to reduce the microcode size, but this is not a huge
                 // problem here.
-                case(micro_op[21:19])
+                case(micro_op_type)
 
                     // short jump
                     3'b000, 3'b100:
@@ -618,6 +639,11 @@ module execution_unit
                     // misc
                     3'b001:
                     begin
+                        if(micro_misc_op_a == MICRO_MISC_OP_A_FLUSH)
+                            queue_flush <= 1;
+
+                        if(micro_misc_op_b == MICRO_MISC_OP_B_SUSP)
+                            queue_suspend <= 1;
                     end
 
                     // long jump
