@@ -73,7 +73,8 @@ module v30mz
     output [15:0] data_out,
 
     output logic [19:0] address_out,
-    output logic [3:0]  bus_status
+    output logic [3:0]  bus_status,
+    output logic bus_upper_byte_enable
 );
 
     // Segment registers
@@ -154,7 +155,7 @@ module v30mz
     wire instruction_nearly_done;
 
     // @todo: Use these.
-    wire [1:0]  eu_bus_command;
+    wire [2:0]  eu_bus_command;
     wire [19:0] eu_bus_address;
 
     // @todo: Use these.
@@ -189,6 +190,7 @@ module v30mz
         // Bus
         .bus_command(eu_bus_command),
         .bus_address(eu_bus_address),
+        .bus_upper_byte_enable(bus_upper_byte_enable),
         .data_out(data_out),
 
         .data_in(data_in),
@@ -223,10 +225,10 @@ module v30mz
                 bus_status       <= 4'hf;
             end
 
-            if(eu_bus_command == BUS_COMMAND_READ)
+            if(eu_bus_command == BUS_COMMAND_MEM_READ)
                 bus_status <= 4'b1001;
 
-            else if(eu_bus_command == BUS_COMMAND_WRITE)
+            else if(eu_bus_command == BUS_COMMAND_MEM_WRITE)
                 bus_status <= 4'b1010;
 
             // Prefetch instruction if not full, or waiting for memory.

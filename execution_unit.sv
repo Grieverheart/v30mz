@@ -1,9 +1,11 @@
 
-enum [1:0]
+enum [2:0]
 {
-    BUS_COMMAND_IDLE  = 2'd0,
-    BUS_COMMAND_READ  = 2'd1,
-    BUS_COMMAND_WRITE = 2'd2
+    BUS_COMMAND_IDLE      = 3'd0,
+    BUS_COMMAND_MEM_READ  = 3'd1,
+    BUS_COMMAND_MEM_WRITE = 3'd2,
+    BUS_COMMAND_IO_READ   = 3'd3,
+    BUS_COMMAND_IO_WRITE  = 3'd4
 } BusCommand;
 
 // @todo: The 8086 has a SUSP microcode action that suspends prefetching.
@@ -39,8 +41,10 @@ module execution_unit
     output instruction_nearly_done,
 
     // Bus
-    output reg [1:0]  bus_command,
+    output reg [2:0]  bus_command,
     output reg [19:0] bus_address,
+    // @todo: Should we just assign this to mov_dst_size ?
+    output reg bus_upper_byte_enable,
     output reg [15:0] data_out,
 
     input [15:0] data_in,
@@ -219,6 +223,12 @@ module execution_unit
     localparam [2:0]
         MICRO_MISC_OP_B_NONE  = 3'h0,
         MICRO_MISC_OP_B_SUSP  = 3'h1;
+
+    localparam [1:0]
+        MICRO_BUS_OP_MEM_READ  = 2'h0,
+        MICRO_BUS_OP_MEM_WRITE = 2'h1,
+        MICRO_BUS_OP_IO_READ   = 2'h2,
+        MICRO_BUS_OP_IO_WRITE  = 2'h3;
 
         // @note: Still need these, I think:
         //     MICRO_MOV_PSW  = 5'h18,
@@ -429,10 +439,11 @@ module execution_unit
 
         if(reset)
         begin
-            read_write_wait <= 0;
-            bus_command     <= BUS_COMMAND_IDLE;
-            regfile_we      <= 0;
-            sregfile_we     <= 0;
+            read_write_wait       <= 0;
+            bus_command           <= BUS_COMMAND_IDLE;
+            bus_upper_byte_enable <= 1;
+            regfile_we            <= 0;
+            sregfile_we           <= 0;
         end
 
         // * Handle move command *
@@ -443,7 +454,7 @@ module execution_unit
             begin
                 // Source is memory
                 bus_address     <= physical_address;
-                bus_command     <= BUS_COMMAND_READ;
+                bus_command     <= BUS_COMMAND_MEM_READ;
                 read_write_wait <= 1;
 
                 mov_from     <= READ_SRC_MEM;
@@ -502,10 +513,9 @@ module execution_unit
             begin
                 // Destination is memory
                 bus_address     <= physical_address;
-                bus_command     <= BUS_COMMAND_WRITE;
+                bus_command     <= BUS_COMMAND_MEM_WRITE;
                 read_write_wait <= 1;
-
-                mov_dst_size <= byte_word_field;
+                mov_dst_size    <= byte_word_field;
             end
             else if((micro_mov_dst == MICRO_MOV_RM) || (micro_mov_dst == MICRO_MOV_R))
             begin
@@ -520,7 +530,7 @@ module execution_unit
             else if(micro_mov_dst >= MICRO_MOV_AW)
             begin
                 // Destination is word register
-                mov_dst_size  <= 1;
+                mov_dst_size <= 1;
 
                 if(micro_mov_dst == MICRO_MOV_PC)
                 begin

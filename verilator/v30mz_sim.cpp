@@ -7,9 +7,9 @@
 
 int main(int argc, char** argv, char** env)
 {
-    FILE* fp = fopen("data/GunPey.ws", "rb");
+    FILE* fp = fopen("data/boot.rom", "rb");
     fseek(fp, 0, SEEK_END);
-    long file_size = ftell(fp);
+    size_t file_size = ftell(fp);
     fseek(fp, 0, SEEK_SET);  /* same as rewind(f); */
 
     uint8_t* instructions = (uint8_t*) malloc(file_size);
@@ -87,7 +87,7 @@ int main(int argc, char** argv, char** env)
             // modify the PS.
             v30mz->data_in = (v30mz->address_out == 0)?
                 0xbeef:
-                *(uint16_t*)(instructions + v30mz->address_out);
+                *(uint16_t*)(instructions + (v30mz->address_out & (file_size - 1)));
 
             v30mz->readyb  = 0;
             data_sent = true;

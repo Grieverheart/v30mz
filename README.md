@@ -4,12 +4,14 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Currently stuck at OUT instruction 0xe6 at address 0xf0003. Also need to implement DI instruction, which sets the IE flag to 0.
+Currently stuck at OUT instruction 0xe6 of bootrom.
 
 # TODO
 
-* Implement IN instruction.
+* Add bus microinstructions -- 2 bits for type of op mem read/write, io read/write.
+* Implement IN/OUT instructions.
 * Implement alu and microinstruction handling.
 * Implement branching microinstruction.
 * Implement microassembler.
 * Implement pipelining by decoupling the execution state.
+* Implement even/odd address reading/writing.

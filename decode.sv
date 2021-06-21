@@ -647,6 +647,16 @@ module decode
                 src        <= 0;
             end
 
+            8'b1110_011?: // OUT acc -> (i8)
+            begin
+                need_modrm <= 0;
+                need_disp  <= 0;
+                need_imm   <= 1;
+                imm_size   <= 0;
+                dst        <= 0;
+                src        <= 0;
+            end
+
             // @todo ...
 
             default:
