@@ -45,6 +45,7 @@ module execution_unit
     output reg [19:0] bus_address,
     // @todo: Should we just assign this to mov_dst_size ?
     output reg bus_upper_byte_enable,
+    // @todo: This is not set.
     output reg [15:0] data_out,
 
     input [15:0] data_in,
@@ -195,26 +196,30 @@ module execution_unit
         // imm value specified by opcode bytes. Cannot be destination.
         MICRO_MOV_IMM  = 5'h04,
 
+        MICRO_MOV_DO   = 5'h05,
+        MICRO_MOV_DI   = 5'h06,
+        MICRO_MOV_ADD  = 5'h07,
+
         // all registers:
-        MICRO_MOV_AL   = 5'h05,
-        MICRO_MOV_AH   = 5'h09,
+        MICRO_MOV_AL   = 5'h11,
+        MICRO_MOV_AH   = 5'h12,
 
-        MICRO_MOV_AW   = 5'h0c,
-        MICRO_MOV_CW   = 5'h0d,
-        MICRO_MOV_DW   = 5'h0e,
-        MICRO_MOV_BW   = 5'h0f,
+        MICRO_MOV_AW   = 5'h13,
+        MICRO_MOV_CW   = 5'h14,
+        MICRO_MOV_DW   = 5'h15,
+        MICRO_MOV_BW   = 5'h16,
 
-        MICRO_MOV_SP   = 5'h10,
-        MICRO_MOV_BP   = 5'h11,
-        MICRO_MOV_IX   = 5'h12,
-        MICRO_MOV_IY   = 5'h13,
+        MICRO_MOV_SP   = 5'h17,
+        MICRO_MOV_BP   = 5'h18,
+        MICRO_MOV_IX   = 5'h19,
+        MICRO_MOV_IY   = 5'h1a,
 
-        MICRO_MOV_PS   = 5'h14,
-        MICRO_MOV_SS   = 5'h15,
-        MICRO_MOV_DS0  = 5'h16,
-        MICRO_MOV_DS1  = 5'h17,
+        MICRO_MOV_PS   = 5'h1b,
+        MICRO_MOV_SS   = 5'h1c,
+        MICRO_MOV_DS0  = 5'h1d,
+        MICRO_MOV_DS1  = 5'h1e,
 
-        MICRO_MOV_PC   = 5'h18;
+        MICRO_MOV_PC   = 5'h1f;
 
     localparam [3:0]
         MICRO_MISC_OP_A_NONE  = 4'h0,
@@ -281,8 +286,9 @@ module execution_unit
         rom[3] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_PS, MICRO_MOV_IMM};
         rom[4] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC, MICRO_MOV_DISP};
 
-        // mov -> ps:  2 cycles
-        // mov -> pc and jump/flush:  1 cycles?
+        // OUT acc -> imm8
+        //rom[5] = {3'b001, MICRO_MISC_OP_B_NONE,   MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD, MICRO_MOV_IMM};
+        //rom[6] = {3'b011, 5'd0,                  MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_DO, MICRO_MOV_AW};
 
         // @todo: implement nop
         // rom[3] = {3'b001, 7'd0, 2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
@@ -417,6 +423,7 @@ module execution_unit
     wire [3:0] micro_misc_op_a = micro_op[15:12];
     wire [2:0] micro_misc_op_b = micro_op[18:16];
     wire [2:0] micro_op_type   = micro_op[21:19];
+    wire [1:0] micro_bus_op    = micro_op[13:12];
 
     //assign queue_flush   = (micro_op_type == 3'b001) && (micro_misc_op_a == MICRO_MISC_OP_A_FLUSH);
     //assign queue_suspend = (micro_op_type == 3'b001) && (micro_misc_op_b == MICRO_MISC_OP_B_SUSP);
@@ -445,6 +452,8 @@ module execution_unit
             regfile_we            <= 0;
             sregfile_we           <= 0;
         end
+
+        // @todo: I think we forgot the MICRO_MOV_NONE.
 
         // * Handle move command *
         if(state == STATE_EXECUTE)
@@ -507,6 +516,12 @@ module execution_unit
                 mov_src_size <= 0;
             end
 
+            // @todo: Handle these:
+            //
+            // MICRO_MOV_DO
+            // MICRO_MOV_DI
+            // MICRO_MOV_ADD
+            //
 
             // ** Handle move destination writing **
             if(micro_mov_dst == MICRO_MOV_RM && need_modrm && mod != 2'b11)
@@ -554,6 +569,29 @@ module execution_unit
                 regfile_we   <= 1;
                 reg_dst      <= {micro_mov_dst - MICRO_MOV_AL}[2:0];
                 mov_dst_size <= 0;
+            end
+
+            // Bus operation
+            if(micro_op_type == 3'b011)
+            begin
+                read_write_wait <= 1;
+
+                if(micro_bus_op == MICRO_BUS_OP_IO_WRITE)
+                begin
+                    bus_command <= BUS_COMMAND_IO_WRITE;
+                end
+                else if(micro_bus_op == MICRO_BUS_OP_IO_READ)
+                begin
+                    bus_command <= BUS_COMMAND_IO_READ;
+                end
+                else if(micro_bus_op == MICRO_BUS_OP_MEM_WRITE)
+                begin
+                    bus_command <= BUS_COMMAND_MEM_WRITE;
+                end
+                else
+                begin
+                    bus_command <= BUS_COMMAND_MEM_READ;
+                end
             end
         end
     end
