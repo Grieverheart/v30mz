@@ -82,12 +82,7 @@ int main(int argc, char** argv, char** env)
         }
         if(v30mz->bus_status == 0x9)
         {
-            // @todo: We should use address_out to get the correct memory
-            // address. Unfortunately, I am currently using instructions that
-            // modify the PS.
-            v30mz->data_in = (v30mz->address_out == 0)?
-                0xbeef:
-                *(uint16_t*)(instructions + (v30mz->address_out & (file_size - 1)));
+            v30mz->data_in = *(uint16_t*)(instructions + (v30mz->address_out & (file_size - 1)));
 
             v30mz->readyb  = 0;
             data_sent = true;

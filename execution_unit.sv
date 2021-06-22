@@ -278,40 +278,38 @@ module execution_unit
         // 12:21; type, a, b
 
         //        type,   b,                    b                      nl/nx, destination,  source
-        rom[0] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_R,  MICRO_MOV_RM};
-        rom[1] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_R};
-        rom[2] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
+        rom[0] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[1] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_R,  MICRO_MOV_RM};
+        rom[2] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_R};
+        rom[3] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
 
         // BR far_label
-        rom[3] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_PS, MICRO_MOV_IMM};
-        rom[4] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC, MICRO_MOV_DISP};
+        rom[4] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_PS, MICRO_MOV_IMM};
+        rom[5] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC, MICRO_MOV_DISP};
 
         // OUT acc -> imm8
         //rom[5] = {3'b001, MICRO_MISC_OP_B_NONE,   MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD, MICRO_MOV_IMM};
         //rom[6] = {3'b011, 5'd0,                  MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_DO, MICRO_MOV_AW};
 
-        // @todo: implement nop
-        // rom[3] = {3'b001, 7'd0, 2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
-
-        for (int i = 5; i < 512; i++)
+        for (int i = 6; i < 512; i++)
             rom[i] = 0;
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
 
         for (int i = 0; i < 2; i++)
-            translation_rom[{7'b1000101, i[0]}] = 9'd0;          // MOV mem -> reg
+            translation_rom[{7'b1000101, i[0]}] = 9'd1;          // MOV mem -> reg
 
         for (int j = 0; j < 8; j++)
             for (int i = 0; i < 2; i++)
-                translation_rom[{4'b1011, i[0], j[2:0]}] = 9'd2; // MOV imm -> reg
+                translation_rom[{4'b1011, i[0], j[2:0]}] = 9'd3; // MOV imm -> reg
 
         for (int i = 0; i < 2; i++)
-            translation_rom[{7'b1100011, i[0]}] = 9'd2;          // MOV imm -> rm
+            translation_rom[{7'b1100011, i[0]}] = 9'd3;          // MOV imm -> rm
 
-        translation_rom[8'b10001100] = 9'd1;                     // MOV sreg -> rm
-        translation_rom[8'b10001110] = 9'd0;                     // MOV rm -> sreg
-        translation_rom[8'b11101010] = 9'd3;                     // BR far_label
+        translation_rom[8'b10001100] = 9'd2;                     // MOV sreg -> rm
+        translation_rom[8'b10001110] = 9'd1;                     // MOV rm -> sreg
+        translation_rom[8'b11101010] = 9'd4;                     // BR far_label
 
     end
 
@@ -406,7 +404,7 @@ module execution_unit
     // @todo: Make this smaller
     reg [3:0] microprogram_counter;
     wire [21:0] micro_op;
-    wire [8:0] address;
+    wire [8:0] microaddress;
 
     wire [4:0] micro_mov_src;
     assign micro_mov_src = micro_op[4:0];
@@ -414,8 +412,8 @@ module execution_unit
     wire [4:0] micro_mov_dst;
     assign micro_mov_dst = micro_op[9:5];
 
-    assign address = translation_rom[opcode];
-    assign micro_op = rom[address + {5'd0, microprogram_counter}];
+    assign microaddress = translation_rom[opcode];
+    assign micro_op = rom[microaddress + {5'd0, microprogram_counter}];
 
     assign instruction_nearly_done = micro_op[10];
     assign instruction_done = micro_op[11];
