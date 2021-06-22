@@ -231,6 +231,12 @@ module v30mz
             else if(eu_bus_command == BUS_COMMAND_MEM_WRITE)
                 bus_status <= 4'b1010;
 
+            else if(eu_bus_command == BUS_COMMAND_IO_READ)
+                bus_status <= 4'b0101;
+
+            else if(eu_bus_command == BUS_COMMAND_IO_WRITE)
+                bus_status <= 4'b0110;
+
             // Prefetch instruction if not full, or waiting for memory.
             else if((eu_bus_command == BUS_COMMAND_IDLE) && !queue_full && !queue_suspend)
             begin

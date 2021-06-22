@@ -61,7 +61,7 @@ int main(int argc, char** argv, char** env)
 
     int timestamp = 0;
     bool data_sent = false;
-    while (timestamp < 100 && !Verilated::gotFinish())
+    while (timestamp < 200 && !Verilated::gotFinish())
     {
         v30mz->clk = 0;
         v30mz->eval();
@@ -84,6 +84,11 @@ int main(int argc, char** argv, char** env)
         {
             v30mz->data_in = *(uint16_t*)(instructions + (v30mz->address_out & (file_size - 1)));
 
+            v30mz->readyb  = 0;
+            data_sent = true;
+        }
+        else if(v30mz->bus_status != 0x0)
+        {
             v30mz->readyb  = 0;
             data_sent = true;
         }

@@ -181,7 +181,6 @@ module execution_unit
     //creating a rom of size 256 indexed by the opcode, where the value is
     //equal to the microcode rom address.
 
-    // @todo: Initialize roms
     reg [8:0] translation_rom[0:255];
     reg [21:0] rom[0:511];
 
@@ -191,14 +190,16 @@ module execution_unit
         MICRO_MOV_R    = 5'h01,
         // register or memory specified by rm field of modrm.
         MICRO_MOV_RM   = 5'h02,
+
         // disp value specified by opcode bytes. Cannot be destination.
         MICRO_MOV_DISP = 5'h03,
+        MICRO_MOV_DO   = 5'h03,
+
         // imm value specified by opcode bytes. Cannot be destination.
         MICRO_MOV_IMM  = 5'h04,
+        MICRO_MOV_DI   = 5'h04,
 
-        MICRO_MOV_DO   = 5'h05,
-        MICRO_MOV_DI   = 5'h06,
-        MICRO_MOV_ADD  = 5'h07,
+        MICRO_MOV_ADD  = 5'h05,
 
         // all registers:
         MICRO_MOV_AL   = 5'h11,
@@ -214,10 +215,10 @@ module execution_unit
         MICRO_MOV_IX   = 5'h19,
         MICRO_MOV_IY   = 5'h1a,
 
-        MICRO_MOV_PS   = 5'h1b,
-        MICRO_MOV_SS   = 5'h1c,
-        MICRO_MOV_DS0  = 5'h1d,
-        MICRO_MOV_DS1  = 5'h1e,
+        MICRO_MOV_DS1  = 5'h1b,
+        MICRO_MOV_PS   = 5'h1c,
+        MICRO_MOV_SS   = 5'h1d,
+        MICRO_MOV_DS0  = 5'h1e,
 
         MICRO_MOV_PC   = 5'h1f;
 
@@ -288,10 +289,14 @@ module execution_unit
         rom[5] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC, MICRO_MOV_DISP};
 
         // OUT acc -> imm8
-        //rom[5] = {3'b001, MICRO_MISC_OP_B_NONE,   MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD, MICRO_MOV_IMM};
-        //rom[6] = {3'b011, 5'd0,                  MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_DO, MICRO_MOV_AW};
+        rom[6] = {3'b001, MICRO_MISC_OP_B_NONE,  MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD, MICRO_MOV_IMM};
+        rom[7] = {3'b011, 5'd0,                 MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_DO, MICRO_MOV_AW};
 
-        for (int i = 6; i < 512; i++)
+        // IN acc -> imm8
+        rom[8] = {3'b001, MICRO_MISC_OP_B_NONE,  MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD, MICRO_MOV_IMM};
+        rom[9] = {3'b011, 5'd0,                  MICRO_BUS_OP_IO_READ, 2'b10, MICRO_MOV_AW,  MICRO_MOV_DI};
+
+        for (int i = 10; i < 512; i++)
             rom[i] = 0;
 
         for (int i = 0; i < 256; i++)
@@ -310,13 +315,15 @@ module execution_unit
         translation_rom[8'b10001100] = 9'd2;                     // MOV sreg -> rm
         translation_rom[8'b10001110] = 9'd1;                     // MOV rm -> sreg
         translation_rom[8'b11101010] = 9'd4;                     // BR far_label
+        translation_rom[8'b11100110] = 9'd6;                     // OUT acc -> imm8
+        translation_rom[8'b11100100] = 9'd8;                     // IN acc -> imm8
 
     end
 
     reg regfile_we;
     wire [2:0] regfile_write_id;
     wire [15:0] regfile_write_data;
-    wire [15:0] regfile_write_data_temp;
+    wire [15:0] mov_data;
     wire [15:0] registers[0:7];
 
     // Latched mov info for performing mov on next posedge clk.
@@ -337,26 +344,27 @@ module execution_unit
         ((reg_src[2]   == 0) ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
                                {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]})));
 
-    assign regfile_write_data_temp =
-         (mov_from == READ_SRC_MEM)  ? data_in:
-        ((mov_from == READ_SRC_IMM)  ? imm:
-        ((mov_from == READ_SRC_DISP) ? disp:
-                                       reg_read));
+    // @todo: This is not a very nice way to handle mov_src_size.
+    assign mov_data =
+         (mov_from == READ_SRC_MEM)  ? ((mov_src_size == 1) ? data_in: {8'd0, data_in[7:0]}):
+        ((mov_from == READ_SRC_IMM)  ? ((mov_src_size == 1) ? imm: {8'd0, imm[7:0]}):
+        ((mov_from == READ_SRC_DISP) ? ((mov_src_size == 1) ? disp: {8'd0, disp[7:0]}):
+                                         reg_read));
 
     assign regfile_write_id = (mov_src_size == 1) ? reg_dst: {1'd0, reg_dst[1:0]};
     assign regfile_write_data =
-         (mov_src_size == 1) ? regfile_write_data_temp:
+         (mov_src_size == 1) ? mov_data:
         ((reg_dst[2]   == 0) ? {
                                    registers[regfile_write_id][15:8],
-                                   regfile_write_data_temp[7:0]
+                                   mov_data[7:0]
                                }:
                                {
-                                   regfile_write_data_temp[7:0],
+                                   mov_data[7:0],
                                    registers[regfile_write_id][7:0]
                                });
 
     assign sregfile_write_id   = reg_dst[1:0];
-    assign sregfile_write_data = regfile_write_data_temp;
+    assign sregfile_write_data = mov_data;
 
     // The register file holds the following registers
     //
@@ -477,15 +485,19 @@ module execution_unit
             else if(micro_mov_src == MICRO_MOV_IMM)
             begin
                 // Source is immediate.
-                mov_from  <= READ_SRC_IMM;
+                mov_from     <= READ_SRC_IMM;
                 mov_src_size <= imm_size;
             end
             else if(micro_mov_src == MICRO_MOV_DISP)
             begin
-                // @todo:
-                // Source is immediate.
-                mov_from  <= READ_SRC_DISP;
+                // Source is disp.
+                mov_from     <= READ_SRC_DISP;
                 mov_src_size <= disp_size;
+            end
+            else if(micro_mov_dst == MICRO_MOV_DI)
+            begin
+                mov_from     <= READ_SRC_MEM;
+                mov_src_size <= byte_word_field;
             end
             else if(micro_mov_src >= MICRO_MOV_AW)
             begin
@@ -510,16 +522,9 @@ module execution_unit
             else
             begin
                 // Source is byte register
-                reg_src <= {micro_mov_src - MICRO_MOV_AL}[2:0];
+                reg_src <= {micro_mov_src - MICRO_MOV_AL}[2:0] << 2;
                 mov_src_size <= 0;
             end
-
-            // @todo: Handle these:
-            //
-            // MICRO_MOV_DO
-            // MICRO_MOV_DI
-            // MICRO_MOV_ADD
-            //
 
             // ** Handle move destination writing **
             if(micro_mov_dst == MICRO_MOV_RM && need_modrm && mod != 2'b11)
@@ -539,6 +544,16 @@ module execution_unit
                     sregfile_we <= 1;
                 else
                     regfile_we  <= 1;
+            end
+            else if(micro_mov_dst == MICRO_MOV_DO)
+            begin
+                data_out     <= mov_data;
+                mov_dst_size <= byte_word_field;
+            end
+            else if(micro_mov_dst == MICRO_MOV_ADD)
+            begin
+                bus_address <= {4'd0, mov_data};
+                mov_dst_size <= 1;
             end
             else if(micro_mov_dst >= MICRO_MOV_AW)
             begin
@@ -661,7 +676,7 @@ module execution_unit
                 state <= next_state;
 
                 if(micro_mov_dst == MICRO_MOV_PC)
-                    PC <= regfile_write_data_temp;
+                    PC <= mov_data;
 
                 microprogram_counter <= (instruction_done == 1) ? 0: microprogram_counter + 1;
 

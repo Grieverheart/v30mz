@@ -647,7 +647,7 @@ module decode
                 src        <= 0;
             end
 
-            8'b1110_011?: // OUT acc -> (i8)
+            8'b1110_01??: // IN/OUT acc -> (i8)
             begin
                 need_modrm <= 0;
                 need_disp  <= 0;
