@@ -28,7 +28,7 @@ int main(int argc, char** argv, char** env)
     v30mz->trace(tfp, 99);  // Trace 99 levels of hierarchy
     tfp->open("sim.vcd");
 
-    //uint8_t instructions[] = 
+    //uint8_t instructions[] =
     //{
     //    0xea,       // BR far-label
     //    0xef,0xbe,  // disp

@@ -656,6 +656,16 @@ module decode
                 dst        <= 0;
                 src        <= 0;
             end
+            
+            8'b1101_00??: // ROR/ROL/RCR/RCL/SAL/SHL/SAR/SHR 1/CL -> rm
+            begin
+                need_modrm <= 1'b1;
+                need_disp  <= need_disp_mod;
+                need_imm   <= 1'b0;
+                imm_size   <= 1'b0;
+                src        <= {1'b0, rm};
+                dst        <= {1'b0, rm};
+            end
 
             // @todo ...
 
