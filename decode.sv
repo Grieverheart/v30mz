@@ -616,7 +616,7 @@ module decode
                 dst        <= 0;
                 src        <= {1'b0, srcm};
             end
-            
+
             8'b1100_011?: // mov: i->m (or i->r non-standard)
             begin
                 need_modrm <= 1;
@@ -656,7 +656,7 @@ module decode
                 dst        <= 0;
                 src        <= 0;
             end
-            
+
             8'b1101_00??: // ROR/ROL/RCR/RCL/SAL/SHL/SAR/SHR 1/CL -> rm
             begin
                 need_modrm <= 1'b1;

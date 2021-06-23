@@ -337,7 +337,7 @@ module execution_unit
     // @todo: We should also latch the imm value, otherwise we're going to
     // have problems when we implement pipelining.
 
-    wire [15:0] reg_read = 
+    wire [15:0] reg_read =
          (mov_from == READ_SRC_SREG)  ? segment_registers[reg_src[1:0]]:
         ((mov_from == READ_SRC_PC) ? PC:
         ((mov_src_size == 1) ? registers[reg_src]:
