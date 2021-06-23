@@ -405,6 +405,14 @@ module execution_unit
         .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
     );
 
+    reg [15:0] alu_a, alu_b, alu_r;
+    reg [3:0] alu_op = 0;
+    alu alu_inst
+    (
+        .alu_op(alu_op),
+        .A(alu_a), .B(alu_b), .R(alu_r)
+    );
+
     // @note: This might play a more important role later, e.g. we might have
     // a microinstruction flag telling us if we should we for the read/write
     // before running the next microinstruction.
