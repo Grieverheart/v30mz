@@ -196,31 +196,35 @@ module execution_unit
         MICRO_MOV_DO   = 5'h03,
 
         // imm value specified by opcode bytes. Cannot be destination.
-        MICRO_MOV_IMM  = 5'h04,
-        MICRO_MOV_DI   = 5'h04,
+        MICRO_MOV_IMM   = 5'h04,
+        MICRO_MOV_DI    = 5'h04,
 
-        MICRO_MOV_ADD  = 5'h05,
+        MICRO_MOV_ADD   = 5'h05,
+
+        MICRO_MOV_ALU_A = 5'h06,
+        MICRO_MOV_ALU_B = 5'h07,
+        MICRO_MOV_ALU_R = 5'h08,
 
         // all registers:
-        MICRO_MOV_AL   = 5'h11,
-        MICRO_MOV_AH   = 5'h12,
+        MICRO_MOV_AL    = 5'h11,
+        MICRO_MOV_AH    = 5'h12,
 
-        MICRO_MOV_AW   = 5'h13,
-        MICRO_MOV_CW   = 5'h14,
-        MICRO_MOV_DW   = 5'h15,
-        MICRO_MOV_BW   = 5'h16,
+        MICRO_MOV_AW    = 5'h13,
+        MICRO_MOV_CW    = 5'h14,
+        MICRO_MOV_DW    = 5'h15,
+        MICRO_MOV_BW    = 5'h16,
 
-        MICRO_MOV_SP   = 5'h17,
-        MICRO_MOV_BP   = 5'h18,
-        MICRO_MOV_IX   = 5'h19,
-        MICRO_MOV_IY   = 5'h1a,
+        MICRO_MOV_SP    = 5'h17,
+        MICRO_MOV_BP    = 5'h18,
+        MICRO_MOV_IX    = 5'h19,
+        MICRO_MOV_IY    = 5'h1a,
 
-        MICRO_MOV_DS1  = 5'h1b,
-        MICRO_MOV_PS   = 5'h1c,
-        MICRO_MOV_SS   = 5'h1d,
-        MICRO_MOV_DS0  = 5'h1e,
+        MICRO_MOV_DS1   = 5'h1b,
+        MICRO_MOV_PS    = 5'h1c,
+        MICRO_MOV_SS    = 5'h1d,
+        MICRO_MOV_DS0   = 5'h1e,
 
-        MICRO_MOV_PC   = 5'h1f;
+        MICRO_MOV_PC    = 5'h1f;
 
     localparam [3:0]
         MICRO_MISC_OP_A_NONE  = 4'h0,
@@ -235,6 +239,27 @@ module execution_unit
         MICRO_BUS_OP_MEM_WRITE = 2'h1,
         MICRO_BUS_OP_IO_READ   = 2'h2,
         MICRO_BUS_OP_IO_WRITE  = 2'h3;
+
+    localparam
+        MICRO_ALU_USE_RESULT    = 1'b0,
+        MICRO_ALU_IGNORE_RESULT = 1'b1;
+
+    // @note:
+    // Alu ops used by 8086 microcode.
+    //
+    // 'XI', 'AND', 'ADD', 'SUBT', 'INC', 'INC2', 'DEC', 'DEC2', 'NEG', 'LRCY', 'RRCY', 'XZC', 'COM1', 'PASS'
+    //
+    localparam [4:0]
+        MICRO_ALU_OP_NONE = 5'h0,
+        MICRO_ALU_OP_XI   = 5'h1,
+        MICRO_ALU_OP_AND  = 5'h2,
+        MICRO_ALU_OP_ADD  = 5'h3,
+        MICRO_ALU_OP_SUB  = 5'h4,
+        MICRO_ALU_OP_INC  = 5'h5,
+        MICRO_ALU_OP_DEC  = 5'h6,
+        MICRO_ALU_OP_NEG  = 5'h7,
+        MICRO_ALU_OP_ROL  = 5'h8,
+        MICRO_ALU_OP_ROR  = 5'h9;
 
         // @note: Still need these, I think:
         //     MICRO_MOV_PSW  = 5'h18,
@@ -278,26 +303,29 @@ module execution_unit
         // 11; last (nl)
         // 12:21; type, a, b
 
-        //        type,   b,                    b                      nl/nx, destination,  source
-        rom[0] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
-        rom[1] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_R,  MICRO_MOV_RM};
-        rom[2] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_R};
-        rom[3] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
+        for (int i = 0; i < 512; i++)
+            rom[i] = 0;
+
+        //        type,    b,                    b                      nl/nx, destination,    source
+        rom[0]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[1]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_R,    MICRO_MOV_RM};
+        rom[2]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,   MICRO_MOV_R};
+        rom[3]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,   MICRO_MOV_IMM};
 
         // BR far_label
-        rom[4] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_PS, MICRO_MOV_IMM};
-        rom[5] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC, MICRO_MOV_DISP};
+        rom[4]  = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_PS,   MICRO_MOV_IMM};
+        rom[5]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC,   MICRO_MOV_DISP};
 
         // OUT acc -> imm8
-        rom[6] = {3'b001, MICRO_MISC_OP_B_NONE,  MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD, MICRO_MOV_IMM};
-        rom[7] = {3'b011, 5'd0,                 MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_DO, MICRO_MOV_AW};
+        rom[6]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_ADD,  MICRO_MOV_IMM};
+        rom[7]  = {3'b011, 5'd0,                 MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_DO,   MICRO_MOV_AW};
 
         // IN acc -> imm8
-        rom[8] = {3'b001, MICRO_MISC_OP_B_NONE,  MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD, MICRO_MOV_IMM};
-        rom[9] = {3'b011, 5'd0,                  MICRO_BUS_OP_IO_READ, 2'b10, MICRO_MOV_AW,  MICRO_MOV_DI};
+        rom[8]  = {3'b001, MICRO_MISC_OP_B_NONE,  MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD,  MICRO_MOV_IMM};
+        rom[9]  = {3'b011, 5'd0,                  MICRO_BUS_OP_IO_READ, 2'b10, MICRO_MOV_AW,   MICRO_MOV_DI};
 
-        for (int i = 10; i < 512; i++)
-            rom[i] = 0;
+        // @info: ALU: ttuaaaaa?? (t = type, u = use alu result, a = alu op)
+        rom[10] = {2'b01, 1'b1, MICRO_ALU_OP_XI,  2'd0,                 2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -405,8 +433,9 @@ module execution_unit
         .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
     );
 
-    reg [15:0] alu_a, alu_b, alu_r;
+    reg [15:0] alu_a, alu_b;
     reg [3:0] alu_op = 0;
+    wire [15:0] alu_r;
     alu alu_inst
     (
         .alu_op(alu_op),
@@ -438,6 +467,8 @@ module execution_unit
     wire [2:0] micro_misc_op_b = micro_op[18:16];
     wire [2:0] micro_op_type   = micro_op[21:19];
     wire [1:0] micro_bus_op    = micro_op[13:12];
+    wire       micro_alu_use   = micro_op[19];
+    wire [4:0] micro_alu_op    = micro_op[18:14];
 
     //assign queue_flush   = (micro_op_type == 3'b001) && (micro_misc_op_a == MICRO_MISC_OP_A_FLUSH);
     //assign queue_suspend = (micro_op_type == 3'b001) && (micro_misc_op_b == MICRO_MISC_OP_B_SUSP);
@@ -502,7 +533,7 @@ module execution_unit
                 mov_from     <= READ_SRC_DISP;
                 mov_src_size <= disp_size;
             end
-            else if(micro_mov_dst == MICRO_MOV_DI)
+            else if(micro_mov_src == MICRO_MOV_DI)
             begin
                 mov_from     <= READ_SRC_MEM;
                 mov_src_size <= byte_word_field;
@@ -562,6 +593,14 @@ module execution_unit
             begin
                 bus_address <= {4'd0, mov_data};
                 mov_dst_size <= 1;
+            end
+            else if(micro_mov_dst == MICRO_MOV_ALU_A)
+            begin
+                // @todo:
+            end
+            else if(micro_mov_dst == MICRO_MOV_ALU_B)
+            begin
+                // @todo:
             end
             else if(micro_mov_dst >= MICRO_MOV_AW)
             begin
@@ -695,16 +734,6 @@ module execution_unit
                 // problem here.
                 case(micro_op_type)
 
-                    // short jump
-                    3'b000, 3'b100:
-                    begin
-                    end
-
-                    // alu
-                    3'b010, 3'b110:
-                    begin
-                    end
-
                     // misc
                     3'b001:
                     begin
@@ -715,13 +744,23 @@ module execution_unit
                             queue_suspend <= 1;
                     end
 
+                    // alu
+                    3'b010, 3'b011:
+                    begin
+                    end
+
+                    // short jump
+                    3'b000, 3'b100:
+                    begin
+                    end
+
                     // long jump
                     3'b101:
                     begin
                     end
 
                     // bus operation
-                    3'b011:
+                    3'b110:
                     begin
                     end
 

@@ -18,8 +18,8 @@ module alu
     output reg [15:0] R
     // @todo: Flags (carry, etc)
 );
-    wire [16:0] Ae = {A[15], A};
-    wire [16:0] Be = {B[15], B};
+    //wire [16:0] Ae = {A[15], A};
+    //wire [16:0] Be = {B[15], B};
 
     always_comb
     begin
@@ -32,10 +32,10 @@ module alu
                 R = A - B;
 
             ALUOP_ROL:
-                R = {{Ae << 1}[15:1], Ae[16]};
+                R = {A[14:0], A[15]};
 
             ALUOP_ROR:
-                R = {Ae[0], {Ae >> 1}[14:0]};
+                R = {A[0], A[15:1]};
 
             ALUOP_SHL:
                 R = A << 1;
