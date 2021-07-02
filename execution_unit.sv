@@ -8,10 +8,6 @@ enum [2:0]
     BUS_COMMAND_IO_WRITE  = 3'd4
 } BusCommand;
 
-// @todo: The 8086 has a SUSP microcode action that suspends prefetching.
-// That's nice, and we could also try to implement it. We probably need to
-// clear SUSP whenever we flush the prefetch queue.
-
 module execution_unit
 (
     input clk,
@@ -67,7 +63,8 @@ module execution_unit
         READ_SRC_PC   = 3'd2,
         READ_SRC_IMM  = 3'd3,
         READ_SRC_DISP = 3'd4,
-        READ_SRC_MEM  = 3'd5;
+        READ_SRC_MEM  = 3'd5,
+        READ_SRC_ALU  = 3'd6;
 
     //localparam [2:0]
     //    LJUMP_COND_UNC = 3'd0,
@@ -202,6 +199,7 @@ module execution_unit
 
         MICRO_MOV_ALU_A = 5'h06,
         MICRO_MOV_ALU_B = 5'h07,
+        // @todo
         MICRO_MOV_ALU_R = 5'h08,
 
         // all registers:
@@ -240,8 +238,8 @@ module execution_unit
         MICRO_BUS_OP_IO_WRITE  = 2'h3;
 
     localparam
-        MICRO_ALU_USE_RESULT    = 1'b0,
-        MICRO_ALU_IGNORE_RESULT = 1'b1;
+        MICRO_ALU_IGNORE_RESULT = 1'b0,
+        MICRO_ALU_USE_RESULT    = 1'b1;
 
     // @note:
     // Alu ops used by 8086 microcode.
@@ -323,9 +321,11 @@ module execution_unit
         rom[8]  = {3'b001, MICRO_MISC_OP_B_NONE,  MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD,  MICRO_MOV_IMM};
         rom[9]  = {3'b110, 5'd0,                  MICRO_BUS_OP_IO_READ, 2'b10, MICRO_MOV_AW,   MICRO_MOV_DI};
 
-        // @info: ALU: ttuaaaaa?? (t = type, u = use alu result, a = alu op)
-        // @todo: Use micro_alu_use!
-        rom[10] = {2'b01, 1'b1, MICRO_ALU_OP_ROL, 2'd0,                 2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
+        // @info: ALU: ttu??aaaaa (t = type, u = use alu result, a = alu op)
+        // @note: If MICRO_ALU_USE_RESULT but src is memory, then don't write
+        // result back this step but instead run the next microinstruction.
+        rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_ROL, 2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
+        rom[11] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,    MICRO_MOV_ALU_R};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -365,37 +365,49 @@ module execution_unit
     reg mov_src_size;
     reg mov_dst_size;
     reg [2:0] mov_from;
-    // @todo: We should also latch the imm value, otherwise we're going to
-    // have problems when we implement pipelining.
 
     wire [15:0] reg_read =
-         (mov_from == READ_SRC_SREG)  ? segment_registers[reg_src[1:0]]:
+         (mov_from == READ_SRC_SREG) ? segment_registers[reg_src[1:0]]:
         ((mov_from == READ_SRC_PC) ? PC:
         ((mov_src_size == 1) ? registers[reg_src]:
         ((reg_src[2]   == 0) ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
                                {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]})));
 
+    // @note: We have introduced a combinatorial loop here because of
+    // 'READ_SRC_ALU'. Fortunately, the loop is never triggered, at least not
+    // in simulation. The only way for the loop to trigger would be when src
+    // and dst of a mov are MICRO_MOV_ALU_R and MICRO_MOV_ALU_A/B
+    // respectively. Now, the loop exists because we allow for explicit mov of
+    // the alu result. To remove the loop, I split the mov_data to
+    // mov_data_alu meant to be fed to alu_a, alu_b, and mov_data meant to be
+    // fed anywhere else. The mov_data_alu has excluded the case when
+    // mov_from == READ_SRC_ALU.
     // @todo: This is not a very nice way to handle mov_src_size.
-    assign mov_data =
+    wire [15:0] mov_data_alu =
          (mov_from == READ_SRC_MEM)  ? ((mov_src_size == 1) ? data_in: {8'd0, data_in[7:0]}):
         ((mov_from == READ_SRC_IMM)  ? ((mov_src_size == 1) ? imm: {8'd0, imm[7:0]}):
         ((mov_from == READ_SRC_DISP) ? ((mov_src_size == 1) ? disp: {8'd0, disp[7:0]}):
                                          reg_read));
+    assign mov_data =
+         (mov_from == READ_SRC_ALU)  ? ((mov_src_size == 1) ? alu_r: {8'd0, alu_r[7:0]}):
+                                        mov_data_alu;
 
     assign regfile_write_id = (mov_src_size == 1) ? reg_dst: {1'd0, reg_dst[1:0]};
+
+    wire [15:0] regfile_write_data_temp = alu_reg_wb ? alu_r: mov_data;
     assign regfile_write_data =
-         (mov_src_size == 1) ? mov_data:
+         (mov_src_size == 1) ? regfile_write_data_temp:
         ((reg_dst[2]   == 0) ? {
                                    registers[regfile_write_id][15:8],
-                                   mov_data[7:0]
+                                   regfile_write_data_temp[7:0]
                                }:
                                {
-                                   mov_data[7:0],
+                                   regfile_write_data_temp[7:0],
                                    registers[regfile_write_id][7:0]
                                });
 
     assign sregfile_write_id   = reg_dst[1:0];
-    assign sregfile_write_data = mov_data;
+    assign sregfile_write_data = regfile_write_data_temp;
 
     // The register file holds the following registers
     //
@@ -463,15 +475,19 @@ module execution_unit
     assign microaddress = translation_rom[opcode];
     assign micro_op = rom[microaddress + {5'd0, microprogram_counter}];
 
+    // @note: Also run next microinstruction when we have alu writeback.
+    wire alu_mem_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod != 2'b11);
+    wire alu_reg_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod == 2'b11);
     assign instruction_nearly_done = micro_op[10];
-    assign instruction_done = micro_op[11];
+    assign instruction_done = (micro_op[11] && !alu_mem_wb);
 
     wire [3:0] micro_misc_op_a = micro_op[15:12];
     wire [2:0] micro_misc_op_b = micro_op[18:16];
     wire [2:0] micro_op_type   = micro_op[21:19];
     wire [1:0] micro_bus_op    = micro_op[13:12];
+
     wire       micro_alu_use   = micro_op[19];
-    wire [4:0] micro_alu_op    = micro_op[18:14];
+    wire [4:0] micro_alu_op    = micro_op[16:12];
 
     //assign queue_flush   = (micro_op_type == 3'b001) && (micro_misc_op_a == MICRO_MISC_OP_A_FLUSH);
     //assign queue_suspend = (micro_op_type == 3'b001) && (micro_misc_op_b == MICRO_MISC_OP_B_SUSP);
@@ -545,6 +561,7 @@ module execution_unit
             begin
                 // Source is word register
                 mov_src_size  <= 1;
+
                 if(micro_mov_src  == MICRO_MOV_PC)
                 begin
                     mov_from <= READ_SRC_PC;
@@ -599,13 +616,13 @@ module execution_unit
             end
             else if(micro_mov_dst == MICRO_MOV_ALU_A)
             begin
-                alu_a <= mov_data;
-                mov_dst_size <= 1;
+                alu_a <= mov_data_alu;
+                mov_dst_size <= 1; // @todo
             end
             else if(micro_mov_dst == MICRO_MOV_ALU_B)
             begin
-                alu_b <= mov_data;
-                mov_dst_size <= 1;
+                alu_b <= mov_data_alu;
+                mov_dst_size <= 1; // @todo
             end
             else if(micro_mov_dst >= MICRO_MOV_AW)
             begin
@@ -636,6 +653,39 @@ module execution_unit
                 mov_dst_size <= 0;
             end
 
+            // ** Handle alu register writeback **
+            if(micro_op_type[2:1] == 2'b01 && micro_alu_use == MICRO_ALU_USE_RESULT)
+            begin
+                if((micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R) && mod == 2'b11)
+                begin
+                    // Destination is register specified by modrm.
+                    reg_dst      <= src_operand[2:0];
+                    mov_dst_size <= byte_word_field;
+                    regfile_we   <= 1;
+                end
+                else if(micro_mov_src >= MICRO_MOV_AW)
+                begin
+                    mov_dst_size <= 1;
+
+                    if(micro_mov_src  == MICRO_MOV_PC)
+                    begin
+                        reg_dst <= 0;
+                    end
+                    else
+                    begin
+                        regfile_we <= 1;
+                        reg_dst    <= {micro_mov_src - MICRO_MOV_AW}[2:0];
+                    end
+                end
+                else if(micro_mov_src == MICRO_MOV_AL || micro_mov_src == MICRO_MOV_AH)
+                begin
+                    // Destination is byte register
+                    regfile_we   <= 1;
+                    reg_dst      <= {micro_mov_src - MICRO_MOV_AL}[2:0];
+                    mov_dst_size <= 0;
+                end
+            end
+
             case(micro_op_type)
                 // Bus operation
                 3'b110:
@@ -662,12 +712,6 @@ module execution_unit
                 // alu operation
                 3'b010, 3'b011:
                 begin
-                    if(micro_alu_use)
-                    begin
-                        // @todo: We write the alu result back to the source
-                        // of the mov.
-                    end
-
                     case(micro_alu_op)
                         MICRO_ALU_OP_XI:
                             // @todo: Set correct alu.
@@ -692,6 +736,7 @@ module execution_unit
                             alu_op <= ALUOP_NEG;
 
                         MICRO_ALU_OP_ROL:
+                            // @todo: Set correct alu based on regm.
                             alu_op <= ALUOP_ROL;
 
                         MICRO_ALU_OP_ROR:

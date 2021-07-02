@@ -8,8 +8,14 @@ enum [3:0]
     ALUOP_INC,
     ALUOP_DEC,
     ALUOP_NEG,
+
     ALUOP_ROL,
-    ALUOP_ROR
+    ALUOP_ROR,
+    ALUOP_ROLC,
+    ALUOP_RORC,
+    ALUOP_SHL,
+    ALUOP_SHR,
+    ALUOP_SHRA
 } AluOp;
 
 module alu
@@ -19,7 +25,7 @@ module alu
     input [15:0] B,
     output reg [15:0] R
     // @todo: Flags (carry, etc)
-    // @todo: input byte_or_word
+    // @todo: input size
 );
     //wire [16:0] Ae = {A[15], A};
     //wire [16:0] Be = {B[15], B};
