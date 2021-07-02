@@ -2,10 +2,12 @@ enum [3:0]
 {
     //ALUOP_PASS_A,
     //ALUOP_PASS_B,
+    ALUOP_AND,
     ALUOP_ADD,
     ALUOP_SUB,
-    ALUOP_SHL,
-    ALUOP_SHR,
+    ALUOP_INC,
+    ALUOP_DEC,
+    ALUOP_NEG,
     ALUOP_ROL,
     ALUOP_ROR
 } AluOp;
@@ -17,6 +19,7 @@ module alu
     input [15:0] B,
     output reg [15:0] R
     // @todo: Flags (carry, etc)
+    // @todo: input byte_or_word
 );
     //wire [16:0] Ae = {A[15], A};
     //wire [16:0] Be = {B[15], B};
@@ -36,12 +39,6 @@ module alu
 
             ALUOP_ROR:
                 R = {A[0], A[15:1]};
-
-            ALUOP_SHL:
-                R = A << 1;
-
-            ALUOP_SHR:
-                R = A >> 1;
 
             default:
                 R = 16'hFACE;

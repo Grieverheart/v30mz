@@ -78,8 +78,6 @@ module execution_unit
     reg [15:0] imm;
     reg [15:0] disp;
 
-    reg [4:0] aluop;
-
     wire has_prefix;
     wire need_modrm;
     wire need_disp;
@@ -139,8 +137,9 @@ module execution_unit
     );
 
 
-    wire [1:0] mod = modrm[7:6];
-    wire [2:0] rm  = modrm[2:0];
+    wire [1:0] mod  = modrm[7:6];
+    wire [2:0] regm = modrm[5:3];
+    wire [2:0] rm   = modrm[2:0];
 
     // @todo: In principle, we should be able to overlap execution with next
     // opcode read if the last microcode is not a read/write operation.
@@ -318,14 +317,15 @@ module execution_unit
 
         // OUT acc -> imm8
         rom[6]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_ADD,  MICRO_MOV_IMM};
-        rom[7]  = {3'b011, 5'd0,                 MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_DO,   MICRO_MOV_AW};
+        rom[7]  = {3'b110, 5'd0,                 MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_DO,   MICRO_MOV_AW};
 
         // IN acc -> imm8
         rom[8]  = {3'b001, MICRO_MISC_OP_B_NONE,  MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD,  MICRO_MOV_IMM};
-        rom[9]  = {3'b011, 5'd0,                  MICRO_BUS_OP_IO_READ, 2'b10, MICRO_MOV_AW,   MICRO_MOV_DI};
+        rom[9]  = {3'b110, 5'd0,                  MICRO_BUS_OP_IO_READ, 2'b10, MICRO_MOV_AW,   MICRO_MOV_DI};
 
         // @info: ALU: ttuaaaaa?? (t = type, u = use alu result, a = alu op)
-        rom[10] = {2'b01, 1'b1, MICRO_ALU_OP_XI,  2'd0,                 2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
+        // @todo: Use micro_alu_use!
+        rom[10] = {2'b01, 1'b1, MICRO_ALU_OP_ROL, 2'd0,                 2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -345,6 +345,9 @@ module execution_unit
         translation_rom[8'b11101010] = 9'd4;                     // BR far_label
         translation_rom[8'b11100110] = 9'd6;                     // OUT acc -> imm8
         translation_rom[8'b11100100] = 9'd8;                     // IN acc -> imm8
+
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1101000, i[0]}] = 9'd10;         // ROL 1 -> rm
 
     end
 
@@ -596,11 +599,13 @@ module execution_unit
             end
             else if(micro_mov_dst == MICRO_MOV_ALU_A)
             begin
-                // @todo:
+                alu_a <= mov_data;
+                mov_dst_size <= 1;
             end
             else if(micro_mov_dst == MICRO_MOV_ALU_B)
             begin
-                // @todo:
+                alu_b <= mov_data;
+                mov_dst_size <= 1;
             end
             else if(micro_mov_dst >= MICRO_MOV_AW)
             begin
@@ -631,28 +636,77 @@ module execution_unit
                 mov_dst_size <= 0;
             end
 
-            // Bus operation
-            if(micro_op_type == 3'b011)
-            begin
-                read_write_wait <= 1;
+            case(micro_op_type)
+                // Bus operation
+                3'b110:
+                begin
+                    read_write_wait <= 1;
 
-                if(micro_bus_op == MICRO_BUS_OP_IO_WRITE)
-                begin
-                    bus_command <= BUS_COMMAND_IO_WRITE;
+                    if(micro_bus_op == MICRO_BUS_OP_IO_WRITE)
+                    begin
+                        bus_command <= BUS_COMMAND_IO_WRITE;
+                    end
+                    else if(micro_bus_op == MICRO_BUS_OP_IO_READ)
+                    begin
+                        bus_command <= BUS_COMMAND_IO_READ;
+                    end
+                    else if(micro_bus_op == MICRO_BUS_OP_MEM_WRITE)
+                    begin
+                        bus_command <= BUS_COMMAND_MEM_WRITE;
+                    end
+                    else
+                    begin
+                        bus_command <= BUS_COMMAND_MEM_READ;
+                    end
                 end
-                else if(micro_bus_op == MICRO_BUS_OP_IO_READ)
+                // alu operation
+                3'b010, 3'b011:
                 begin
-                    bus_command <= BUS_COMMAND_IO_READ;
+                    if(micro_alu_use)
+                    begin
+                        // @todo: We write the alu result back to the source
+                        // of the mov.
+                    end
+
+                    case(micro_alu_op)
+                        MICRO_ALU_OP_XI:
+                            // @todo: Set correct alu.
+                            alu_op <= {1'b0, (opcode[7:4] == 4'b1000)? regm: opcode[5:3]};
+
+                        MICRO_ALU_OP_AND:
+                            alu_op <= ALUOP_AND;
+
+                        MICRO_ALU_OP_ADD:
+                            alu_op <= ALUOP_ADD;
+
+                        MICRO_ALU_OP_SUB:
+                            alu_op <= ALUOP_SUB;
+
+                        MICRO_ALU_OP_INC:
+                            alu_op <= ALUOP_INC;
+
+                        MICRO_ALU_OP_DEC:
+                            alu_op <= ALUOP_DEC;
+
+                        MICRO_ALU_OP_NEG:
+                            alu_op <= ALUOP_NEG;
+
+                        MICRO_ALU_OP_ROL:
+                            alu_op <= ALUOP_ROL;
+
+                        MICRO_ALU_OP_ROR:
+                            alu_op <= ALUOP_ROR;
+
+                        default:
+                            // @todo: pass?
+                            alu_op <= 0;
+
+                    endcase
                 end
-                else if(micro_bus_op == MICRO_BUS_OP_MEM_WRITE)
-                begin
-                    bus_command <= BUS_COMMAND_MEM_WRITE;
-                end
-                else
-                begin
-                    bus_command <= BUS_COMMAND_MEM_READ;
-                end
-            end
+
+                default:;
+
+            endcase
         end
     end
 
