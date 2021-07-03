@@ -8,6 +8,12 @@ enum [2:0]
     BUS_COMMAND_IO_WRITE  = 3'd4
 } BusCommand;
 
+`define assert(signal, value) \
+    if (signal !== value) begin \
+        $display("ASSERTION FAILED in %m: signal != value"); \
+        $finish; \
+    end
+
 module execution_unit
 (
     input clk,
@@ -41,7 +47,6 @@ module execution_unit
     output reg [19:0] bus_address,
     // @todo: Should we just assign this to mov_dst_size ?
     output reg bus_upper_byte_enable,
-    // @todo: This is not set.
     output reg [15:0] data_out,
 
     input [15:0] data_in,
@@ -112,16 +117,16 @@ module execution_unit
     // value for the physical address calculation.
     decode decode_inst
     (
-        .opcode(opcode),
-        .modrm(modrm),
+        .opcode,
+        .modrm,
 
-        .need_modrm(need_modrm),
+        .need_modrm,
 
-        .need_disp(need_disp),
-        .disp_size(disp_size),
+        .need_disp,
+        .disp_size,
 
-        .need_imm(need_imm),
-        .imm_size(imm_size),
+        .need_imm,
+        .imm_size,
 
         .src(src_operand),
         .dst(dst_operand),
@@ -304,7 +309,7 @@ module execution_unit
             rom[i] = 0;
 
         //        type,    b,                    b                      nl/nx, destination,    source
-        rom[0]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[0]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE}; // NOP
         rom[1]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_R,    MICRO_MOV_RM};
         rom[2]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,   MICRO_MOV_R};
         rom[3]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,   MICRO_MOV_IMM};
@@ -324,7 +329,7 @@ module execution_unit
         // @info: ALU: ttu??aaaaa (t = type, u = use alu result, a = alu op)
         // @note: If MICRO_ALU_USE_RESULT but src is memory, then don't write
         // result back this step but instead run the next microinstruction.
-        rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_ROL, 2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
+        rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
         rom[11] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,    MICRO_MOV_ALU_R};
 
         for (int i = 0; i < 256; i++)
@@ -429,12 +434,12 @@ module execution_unit
 
     register_file register_file_inst
     (
-        .clk(clk),
-        .reset(reset),
+        .clk,
+        .reset,
         .we(regfile_we),
         .write_id(regfile_write_id),
         .write_data(regfile_write_data),
-        .registers(registers)
+        .registers
     );
 
     wire [19:0] physical_address;
@@ -448,14 +453,21 @@ module execution_unit
         .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
     );
 
-    reg [15:0] alu_a, alu_b;
-    reg [3:0] alu_op = 0;
+    wire [15:0] alu_a, alu_b;
+    reg [4:0] alu_op = 0;
+    reg alu_size = 0;
     wire [15:0] alu_r;
+    wire [5:0] alu_flags;
     alu alu_inst
     (
-        .alu_op(alu_op),
-        .A(alu_a), .B(alu_b), .R(alu_r)
+        .alu_op,
+        .size(alu_size),
+        .A(alu_a), .B(alu_b), .R(alu_r),
+        .flags(alu_flags)
     );
+
+    assign alu_a = (micro_mov_dst == MICRO_MOV_ALU_A)? mov_data_alu: 1;
+    assign alu_b = (micro_mov_dst == MICRO_MOV_ALU_B)? mov_data_alu: 1;
 
     // @note: This might play a more important role later, e.g. we might have
     // a microinstruction flag telling us if we should we for the read/write
@@ -494,7 +506,6 @@ module execution_unit
 
     always_latch
     begin
-
         if(bus_command_done)
         begin
             read_write_wait <= 0;
@@ -616,13 +627,11 @@ module execution_unit
             end
             else if(micro_mov_dst == MICRO_MOV_ALU_A)
             begin
-                alu_a <= mov_data_alu;
-                mov_dst_size <= 1; // @todo
+                mov_dst_size <= byte_word_field;
             end
             else if(micro_mov_dst == MICRO_MOV_ALU_B)
             begin
-                alu_b <= mov_data_alu;
-                mov_dst_size <= 1; // @todo
+                mov_dst_size <= byte_word_field;
             end
             else if(micro_mov_dst >= MICRO_MOV_AW)
             begin
@@ -712,10 +721,15 @@ module execution_unit
                 // alu operation
                 3'b010, 3'b011:
                 begin
+                    alu_size <= byte_word_field;
+
                     case(micro_alu_op)
                         MICRO_ALU_OP_XI:
-                            // @todo: Set correct alu.
-                            alu_op <= {1'b0, (opcode[7:4] == 4'b1000)? regm: opcode[5:3]};
+                            alu_op <=
+                                 (opcode[7:4] == 4'b1000)?    {2'b0, regm}:
+                                ((opcode[7:2] == 6'b110100)?  ALUOP_ROL + {2'b0, regm}:
+                                ((opcode[7:1] == 7'b1100000)? ALUOP_ROL + {2'b0, regm}:
+                                                              {2'b0, opcode[5:3]}));
 
                         MICRO_ALU_OP_AND:
                             alu_op <= ALUOP_AND;
@@ -736,14 +750,12 @@ module execution_unit
                             alu_op <= ALUOP_NEG;
 
                         MICRO_ALU_OP_ROL:
-                            // @todo: Set correct alu based on regm.
                             alu_op <= ALUOP_ROL;
 
                         MICRO_ALU_OP_ROR:
                             alu_op <= ALUOP_ROR;
 
                         default:
-                            // @todo: pass?
                             alu_op <= 0;
 
                     endcase
