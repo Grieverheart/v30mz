@@ -8,7 +8,6 @@ Currently stuck at ROL instruction 0xd0 of bootrom.
 
 # TODO
 
-* Complete a few alu instructions.
 * Implement branching microinstruction.
 * Implement pipelining by decoupling the execution state.
 * Implement even/odd address reading/writing.

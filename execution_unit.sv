@@ -458,6 +458,7 @@ module execution_unit
     reg alu_size = 0;
     wire [15:0] alu_r;
     wire [5:0] alu_flags;
+    reg [5:0] alu_flags_r;
     alu alu_inst
     (
         .alu_op,
@@ -721,7 +722,10 @@ module execution_unit
                 // alu operation
                 3'b010, 3'b011:
                 begin
-                    alu_size <= byte_word_field;
+                    alu_size    <= byte_word_field;
+                    // @todo: We probably need to add flag for updating flags
+                    // or not.
+                    alu_flags_r <= alu_flags;
 
                     case(micro_alu_op)
                         MICRO_ALU_OP_XI:

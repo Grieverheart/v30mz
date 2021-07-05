@@ -39,9 +39,150 @@ module alu
     output reg [15:0] R,
     output reg [5:0] flags
 );
+
+    function [15:0] rol
+    (
+        input byte_or_word,
+        input [15:0] x, input [15:0] s
+    );
+        if(byte_or_word == 0)
+        begin
+            case(s[3:0])
+                1:
+                    rol = {x[14:0], x[7]};
+                2:
+                    rol = {x[13:0], x[7:6]};
+                3:
+                    rol = {x[12:0], x[7:5]};
+                4:
+                    rol = {x[11:0], x[7:4]};
+                5:
+                    rol = {x[10:0], x[7:3]};
+                6:
+                    rol = {x[9:0], x[7:2]};
+                7:
+                    rol = {x[8:0], x[7:1]};
+                default:
+                    rol = x;
+            endcase
+        end
+        else
+        begin
+            case(s[4:0])
+                1:
+                    rol = {x[14:0], x[15]};
+                2:
+                    rol = {x[13:0], x[15:14]};
+                3:
+                    rol = {x[12:0], x[15:13]};
+                4:
+                    rol = {x[11:0], x[15:12]};
+                5:
+                    rol = {x[10:0], x[15:11]};
+                6:
+                    rol = {x[9:0], x[15:10]};
+                7:
+                    rol = {x[8:0], x[15:9]};
+                8:
+                    rol = {x[7:0], x[15:8]};
+                9:
+                    rol = {x[6:0], x[15:7]};
+                10:
+                    rol = {x[5:0], x[15:6]};
+                11:                                     
+                    rol = {x[4:0], x[15:5]};
+                12:                                     
+                    rol = {x[3:0], x[15:4]};
+                13:                                     
+                    rol = {x[2:0], x[15:3]};
+                14:
+                    rol = {x[1:0], x[15:2]};
+                15:                                    
+                    rol = {x[0], x[15:1]};
+                default:
+                    rol = x;
+            endcase
+        end
+    endfunction
+
+    function [15:0] ror
+    (
+        input byte_or_word,
+        input [15:0] x, input [15:0] s
+    );
+        if(byte_or_word == 0)
+        begin
+            case(s[3:0])
+                1:
+                    ror = {x[15:8], x[0],   x[7:1]};
+                2:
+                    ror = {x[15:8], x[1:0], x[7:2]};
+                3:
+                    ror = {x[15:8], x[2:0], x[7:3]};
+                4:
+                    ror = {x[15:8], x[3:0], x[7:4]};
+                5:
+                    ror = {x[15:8], x[4:0], x[7:5]};
+                6:
+                    ror = {x[15:8], x[5:0], x[7:6]};
+                7:
+                    ror = {x[15:8], x[6:0], x[7]};
+                default:
+                    ror = x;
+            endcase
+        end
+        else
+        begin
+            case(s[4:0])
+                1:
+                    ror = {x[0],   x[15:1]};
+                2:
+                    ror = {x[1:0], x[15:2]};
+                3:
+                    ror = {x[2:0], x[15:3]};
+                4:
+                    ror = {x[3:0], x[15:4]};
+                5:
+                    ror = {x[4:0], x[15:5]};
+                6:
+                    ror = {x[5:0], x[15:6]};
+                7:
+                    ror = {x[6:0], x[15:7]};
+                8:
+                    ror = {x[7:0], x[15:8]};
+                9:
+                    ror = {x[8:0], x[15:9]};
+                10:
+                    ror = {x[9:0], x[15:10]};
+                11:
+                    ror = {x[10:0], x[15:11]};
+                12:
+                    ror = {x[11:0], x[15:12]};
+                13:
+                    ror = {x[12:0], x[15:13]};
+                14:
+                    ror = {x[13:0], x[15:14]};
+                15:
+                    ror = {x[14:0], x[15]};
+                default:
+                    ror = x;
+            endcase
+        end
+    endfunction
+
+    function parity(input [15:0] x);
+        parity = ~(x[0] ^ x[1] ^ x[2] ^ x[3] ^ x[4] ^ x[5] ^ x[6] ^ x[7]);
+    endfunction
+
     // @question: When size == 0, do we modify the contents of the upper byte?
     // Does it matter at all if we write back only the lower byte anyway?
     // I would guess not.
+
+    // @question: Is it better to use non-blocking assigns and set flags based
+    // strictly on the input data, or using blocking assignments with extended
+    // by-1-bit data and use the result for the carry?
+
+    // @todo: What's the correct way to handle 0 shifts?
 
     wire [3:0] msb = (size == 0)? 4'd7: 4'd15;
 
@@ -50,23 +191,56 @@ module alu
         case(alu_op)
 
             ALUOP_ADD:
-                R = A + B;
+            begin
+                {flags[ALU_FLAG_CY], R} = {1'b0, A} + {1'b0, B};
+                flags[ALU_FLAG_V] = (A[msb] == B[msb]) && (R[msb] != A[msb]);
+                flags[ALU_FLAG_Z] = (R == 0);
+                flags[ALU_FLAG_P] = parity(R);
+                flags[ALU_FLAG_S] = R[msb];
+            end
 
             ALUOP_SUB:
+            begin
                 R = A - B;
+                flags[ALU_FLAG_CY] = (A > B);
+                flags[ALU_FLAG_V] = (A[msb] != B[msb]) && (R[msb] != A[msb]);
+                flags[ALU_FLAG_Z] = (R == 0);
+                flags[ALU_FLAG_P] = parity(R);
+                flags[ALU_FLAG_S] = R[msb];
+            end
 
             ALUOP_ROL:
-                R = (size == 0)?
-                    {A[14:0], A[7]}:
-                    {A[14:0], A[7]};
+            begin
+                R = rol(size, A, B);
+                flags[ALU_FLAG_CY] = R[msb];
+                if(A[msb] == R[msb]) flags[ALU_FLAG_V] = 0;
+            end
 
             ALUOP_ROR:
-                R = (size == 0)?
-                    {A[15:8], A[0], A[7:1]}:
-                    {A[0], A[15:1]};
+            begin
+                R = ror(size, A, B);
+                flags[ALU_FLAG_CY] = R[0];
+                if(A[msb] == R[msb]) flags[ALU_FLAG_V] = 0;
+            end
 
             ALUOP_SHL:
-                R = {A[14:0], 1'b0};
+            begin
+                if(B == 1)
+                begin
+                    R = {A[14:0], 1'b0};
+                    flags[ALU_FLAG_CY] = A[msb];
+                    if(A[msb] == A[msb-1]) flags[ALU_FLAG_V] = 0;
+                end
+                else
+                begin
+                    R = (A << B[4:0]);
+                    if(B > 0) flags[ALU_FLAG_CY] = A[msb - B[4:0] + 1];
+                end
+
+                flags[ALU_FLAG_Z] = (R == 0);
+                flags[ALU_FLAG_S] = R[msb];
+                flags[ALU_FLAG_P] = parity(R);
+            end
 
             ALUOP_SHR:
             begin
@@ -82,17 +256,13 @@ module alu
                 end
                 else
                 begin
-                    if(B != 0)
-                    begin
-                        R = (A >> B[4:0]);
-                        flags[ALU_FLAG_CY] = A[B[4:0]-1];
-                    end
-                    else
-                    begin
-                        R = A;
-                        flags[ALU_FLAG_CY] = 0;
-                    end
+                    R = (A >> B[4:0]);
+                    if(B > 0) flags[ALU_FLAG_CY] = A[B[4:0]-1];
                 end
+
+                flags[ALU_FLAG_Z] = (R == 0);
+                flags[ALU_FLAG_S] = R[msb];
+                flags[ALU_FLAG_P] = parity(R);
             end
 
             default:
