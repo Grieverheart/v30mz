@@ -174,15 +174,16 @@ module execution_unit
             (imm_size    ? STATE_IMM_HIGH_READ:
                            STATE_EXECUTE):
 
-        (state == STATE_IMM_HIGH_READ) ? STATE_EXECUTE:
-        // STATE_EXECUTE
-        (instruction_done ? STATE_OPCODE_READ: STATE_EXECUTE);
+        (state == STATE_IMM_HIGH_READ) ?
+                           STATE_EXECUTE:
+                           STATE_OPCODE_READ;
 
     // @info: The opcode is translated directly to a rom address. This can be done by
     //creating a rom of size 256 indexed by the opcode, where the value is
     //equal to the microcode rom address.
 
     reg [8:0] translation_rom[0:255];
+    reg [8:0] jump_table[0:15];
     reg [21:0] rom[0:511];
 
     localparam [4:0]
@@ -245,6 +246,9 @@ module execution_unit
     localparam
         MICRO_ALU_IGNORE_RESULT = 1'b0,
         MICRO_ALU_USE_RESULT    = 1'b1;
+
+    localparam
+        MICRO_JMP_XC = 3'b0;
 
     // @note:
     // Alu ops used by 8086 microcode.
@@ -332,6 +336,14 @@ module execution_unit
         rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
         rom[11] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,    MICRO_MOV_ALU_R};
 
+        // @info: Long jump: tttcccdddd (t = type, c = jump condition, d = jump
+        // destination)
+        rom[12] = {3'b101, MICRO_JMP_XC, 4'h0,                          2'b00, MICRO_MOV_NONE, MICRO_MOV_NONE};
+
+        rom[13] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_ALU_B, MICRO_MOV_DISP};
+        rom[14] = {2'b01, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_ADD, 2'b00, MICRO_MOV_ALU_A, MICRO_MOV_PC};
+        rom[15] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC, MICRO_MOV_ALU_R};
+
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
 
@@ -353,6 +365,13 @@ module execution_unit
 
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1101000, i[0]}] = 9'd10;         // ROL 1 -> rm
+
+        translation_rom[8'b01110011] = 9'd12;         // ROL 1 -> rm
+
+        for (int i = 0; i < 16; i++)
+            jump_table[i] = 9'd0;
+
+        jump_table[0] = 9'd13;
 
     end
 
@@ -477,7 +496,7 @@ module execution_unit
     // @todo: Make this smaller
     reg [3:0] microprogram_counter;
     wire [21:0] micro_op;
-    wire [8:0] microaddress;
+    reg [8:0] microaddress;
 
     wire [4:0] micro_mov_src;
     assign micro_mov_src = micro_op[4:0];
@@ -485,7 +504,6 @@ module execution_unit
     wire [4:0] micro_mov_dst;
     assign micro_mov_dst = micro_op[9:5];
 
-    assign microaddress = translation_rom[opcode];
     assign micro_op = rom[microaddress + {5'd0, microprogram_counter}];
 
     // @note: Also run next microinstruction when we have alu writeback.
@@ -501,6 +519,9 @@ module execution_unit
 
     wire       micro_alu_use   = micro_op[19];
     wire [4:0] micro_alu_op    = micro_op[16:12];
+
+    wire [2:0] micro_jmp_condition   = micro_op[18:16];
+    wire [3:0] micro_jmp_destination = micro_op[15:12];
 
     //assign queue_flush   = (micro_op_type == 3'b001) && (micro_misc_op_a == MICRO_MISC_OP_A_FLUSH);
     //assign queue_suspend = (micro_op_type == 3'b001) && (micro_misc_op_b == MICRO_MISC_OP_B_SUSP);
@@ -776,6 +797,7 @@ module execution_unit
         if(reset)
         begin
             microprogram_counter <= 0;
+            microaddress         <= translation_rom[0];
             PC                   <= 16'h0000;
             state                <= STATE_OPCODE_READ;
         end
@@ -783,6 +805,7 @@ module execution_unit
         begin
             queue_flush   <= 0;
             queue_suspend <= 0;
+            microaddress  <= translation_rom[opcode];
 
             // @todo: Allow reading when instruction is done or nearly done.
             // Perhaps we can achieve this by removing the execute state,
@@ -835,12 +858,17 @@ module execution_unit
             // STATE_EXECUTE
             else if(!read_write_wait || bus_command_done)
             begin
-                state <= next_state;
+                if(instruction_done)
+                begin
+                    state <= next_state;
+                    microprogram_counter <= 0;
+                end
+                else
+                    microprogram_counter <= microprogram_counter + 1;
 
                 if(micro_mov_dst == MICRO_MOV_PC)
                     PC <= mov_data;
 
-                microprogram_counter <= (instruction_done == 1) ? 0: microprogram_counter + 1;
 
                 // Handle other commands
                 // @note: Not sure if I need to handle all these types of
@@ -872,6 +900,37 @@ module execution_unit
                     // long jump
                     3'b101:
                     begin
+                        case(micro_jmp_condition)
+                            MICRO_JMP_XC:
+                            begin
+                                case(opcode[3:0])
+                                    4'h3:
+                                    begin
+                                        microprogram_counter <= 0;
+                                        if(alu_flags_r[ALU_FLAG_CY] == 0)
+                                        begin
+                                            microaddress <= jump_table[micro_jmp_destination];
+                                        end
+                                        else
+                                        begin
+                                            // @todo: We don't always want to terminate the instruction when
+                                            // the branch is not taken. We need a way to specify in the
+                                            // microcode if the instruction should terminate or not. We could
+                                            // reuse the 'nl' flag.
+                                            state <= next_state;
+                                            PC <= PC + 1;
+                                        end
+                                    end
+
+                                    default:
+                                    begin
+                                    end
+                                endcase
+                            end
+                            default:
+                            begin
+                            end
+                        endcase
                     end
 
                     // bus operation

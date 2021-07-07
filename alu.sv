@@ -192,7 +192,7 @@ module alu
 
             ALUOP_ADD:
             begin
-                {flags[ALU_FLAG_CY], R} = {1'b0, A} + {1'b0, B};
+                {flags[ALU_FLAG_CY], R} = $signed({1'b0, A}) + $signed({1'b0, B});
                 flags[ALU_FLAG_V] = (A[msb] == B[msb]) && (R[msb] != A[msb]);
                 flags[ALU_FLAG_Z] = (R == 0);
                 flags[ALU_FLAG_P] = parity(R);
@@ -201,7 +201,7 @@ module alu
 
             ALUOP_SUB:
             begin
-                R = A - B;
+                R = $signed(A) - $signed(B);
                 flags[ALU_FLAG_CY] = (A > B);
                 flags[ALU_FLAG_V] = (A[msb] != B[msb]) && (R[msb] != A[msb]);
                 flags[ALU_FLAG_Z] = (R == 0);
