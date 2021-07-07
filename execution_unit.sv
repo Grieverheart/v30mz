@@ -199,9 +199,9 @@ module execution_unit
 
         // imm value specified by opcode bytes. Cannot be destination.
         MICRO_MOV_IMM   = 5'h04,
-        MICRO_MOV_DI    = 5'h04,
+        MICRO_MOV_ADD   = 5'h04,
 
-        MICRO_MOV_ADD   = 5'h05,
+        MICRO_MOV_DI    = 5'h05,
 
         MICRO_MOV_ALU_A = 5'h06,
         MICRO_MOV_ALU_B = 5'h07,

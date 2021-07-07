@@ -89,6 +89,7 @@ int main(int argc, char** argv, char** env)
         }
         else if(v30mz->bus_status != 0x0)
         {
+            if(v30mz->bus_status == 0x5) v30mz->data_in = 0;
             v30mz->readyb  = 0;
             data_sent = true;
         }
