@@ -39,7 +39,6 @@ module execution_unit
     output reg sregfile_we,
 
     // Execution status
-    output instruction_done,
     output instruction_nearly_done,
 
     // Bus
@@ -185,6 +184,14 @@ module execution_unit
     reg [8:0] translation_rom[0:255];
     reg [8:0] jump_table[0:15];
     reg [21:0] rom[0:511];
+
+    localparam [2:0]
+        MICRO_TYPE_MISC = 3'b001,
+        MICRO_TYPE_BUS  = 3'b110,
+        MICRO_TYPE_JMP  = 3'b101;
+
+    localparam [1:0]
+        MICRO_TYPE_ALU = 2'b01;
 
     localparam [4:0]
         MICRO_MOV_NONE = 5'h00,
@@ -338,7 +345,7 @@ module execution_unit
 
         // @info: Long jump: tttcccdddd (t = type, c = jump condition, d = jump
         // destination)
-        rom[12] = {3'b101, MICRO_JMP_XC, 4'h0,                          2'b00, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[12] = {3'b101, MICRO_JMP_XC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
         rom[13] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_ALU_B, MICRO_MOV_DISP};
         rom[14] = {2'b01, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_ADD, 2'b00, MICRO_MOV_ALU_A, MICRO_MOV_PC};
@@ -509,8 +516,9 @@ module execution_unit
     // @note: Also run next microinstruction when we have alu writeback.
     wire alu_mem_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod != 2'b11);
     wire alu_reg_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod == 2'b11);
+    reg branch_taken = 0;
     assign instruction_nearly_done = micro_op[10];
-    assign instruction_done = (micro_op[11] && !alu_mem_wb);
+    wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken);
 
     wire [3:0] micro_misc_op_a = micro_op[15:12];
     wire [2:0] micro_misc_op_b = micro_op[18:16];
@@ -805,6 +813,8 @@ module execution_unit
         begin
             queue_flush   <= 0;
             queue_suspend <= 0;
+            branch_taken  <= 0;
+            // @todo: This is wrong!
             microaddress  <= translation_rom[opcode];
 
             // @todo: Allow reading when instruction is done or nearly done.
@@ -813,11 +823,11 @@ module execution_unit
             // and having a separate reg enabled when executing. The reg is
             // enabled when next_state == STATE_OPCODE_READ. The state of the
             // opcode reader is then set to next_state only when
-            // instruction_done or instruction_nearly_done. The following
+            // instruction_maybe_done or instruction_nearly_done. The following
             // should work, but I think it will only give benefits when we
             // have instructions that set instruction_nearly_done.
             //
-            // if(!queue_empty && (instruction_done || instruction_nearly_done))
+            // if(!queue_empty && (instruction_maybe_done || instruction_nearly_done))
             // begin
             //     // Get instruction from queue_buffer if it's not empty.
             //     if(state == STATE_OPCODE_READ)
@@ -858,7 +868,7 @@ module execution_unit
             // STATE_EXECUTE
             else if(!read_write_wait || bus_command_done)
             begin
-                if(instruction_done)
+                if(instruction_maybe_done)
                 begin
                     state <= next_state;
                     microprogram_counter <= 0;
@@ -906,19 +916,12 @@ module execution_unit
                                 case(opcode[3:0])
                                     4'h3:
                                     begin
-                                        microprogram_counter <= 0;
                                         if(alu_flags_r[ALU_FLAG_CY] == 0)
                                         begin
+                                            microprogram_counter <= 0;
                                             microaddress <= jump_table[micro_jmp_destination];
-                                        end
-                                        else
-                                        begin
-                                            // @todo: We don't always want to terminate the instruction when
-                                            // the branch is not taken. We need a way to specify in the
-                                            // microcode if the instruction should terminate or not. We could
-                                            // reuse the 'nl' flag.
-                                            state <= next_state;
-                                            PC <= PC + 1;
+                                            branch_taken <= 1;
+                                            state <= STATE_EXECUTE;
                                         end
                                     end
 

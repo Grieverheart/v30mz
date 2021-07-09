@@ -71,7 +71,7 @@ module decode
     // @note: Note sure if I like this approach.
     wire disp_size_mod = (rm == 3'b110 && mod == 0)? 1: mod[1];
     wire disp_size_from_mod = !opcode[7] | (!opcode[5] & !opcode[4]) | (opcode[6] & opcode[4]);
-    assign disp_size = !disp_size_from_mod | disp_size_mod;
+    assign disp_size = !disp_size_from_mod | (need_modrm & disp_size_mod);
 
     assign byte_word_field =
         (opcode[7:4] != 4'b1011 && opcode[7:2] != 6'b100011)? opcode[0]: opcode[3];

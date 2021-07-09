@@ -151,7 +151,6 @@ module v30mz
         .full(queue_full)
     );
 
-    wire instruction_done;
     wire instruction_nearly_done;
 
     // @todo: Use these.
@@ -184,7 +183,6 @@ module v30mz
         .sregfile_write_id(eu_sreg_write_id),
         .sregfile_we(eu_sreg_we),
 
-        .instruction_done(instruction_done),
         .instruction_nearly_done(instruction_nearly_done),
 
         // Bus
