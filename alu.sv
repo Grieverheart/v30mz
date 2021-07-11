@@ -2,12 +2,14 @@ enum [4:0]
 {
     //ALUOP_PASS_A,
     //ALUOP_PASS_B,
-    ALUOP_AND,
-    ALUOP_ADD,
-    ALUOP_SUB,
-    ALUOP_INC,
-    ALUOP_DEC,
-    ALUOP_NEG,
+    ALUOP_ADD  = 5'd0,
+    ALUOP_OR   = 5'd1,
+    ALUOP_ADDC = 5'd2,
+    ALUOP_NEG  = 5'd3,
+    ALUOP_AND  = 5'd4,
+    ALUOP_SUB  = 5'd5,
+    ALUOP_XOR  = 5'd6,
+    ALUOP_CMP  = 5'd7,
 
     ALUOP_ROL,
     ALUOP_ROR,
@@ -16,7 +18,10 @@ enum [4:0]
     ALUOP_SHL,
     ALUOP_SHR,
     ALUOP_SHRA,
-    ALUOP_SHLA // Does not exist, just ALUOP_SHL
+    ALUOP_SHLA, // Does not exist, just ALUOP_SHL
+
+    ALUOP_INC,
+    ALUOP_DEC
 } AluOp;
 
 enum [2:0]
@@ -189,6 +194,15 @@ module alu
     always_comb
     begin
         case(alu_op)
+
+            ALUOP_AND:
+            begin
+                R = A & B;
+                flags[ALU_FLAG_V] = (A[msb] == B[msb]) && (R[msb] != A[msb]);
+                flags[ALU_FLAG_Z] = (R == 0);
+                flags[ALU_FLAG_P] = parity(R);
+                flags[ALU_FLAG_S] = R[msb];
+            end
 
             ALUOP_ADD:
             begin

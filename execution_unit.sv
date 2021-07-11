@@ -212,8 +212,9 @@ module execution_unit
 
         MICRO_MOV_ALU_A = 5'h06,
         MICRO_MOV_ALU_B = 5'h07,
-        // @todo
         MICRO_MOV_ALU_R = 5'h08,
+        MICRO_MOV_ZERO  = 5'h09,
+        MICRO_MOV_ONES  = 5'h10,
 
         // all registers:
         MICRO_MOV_AL    = 5'h11,
@@ -340,20 +341,20 @@ module execution_unit
         // @info: ALU: ttu??aaaaa (t = type, u = use alu result, a = alu op)
         // @note: If MICRO_ALU_USE_RESULT but src is memory, then don't write
         // result back this step but instead run the next microinstruction.
-        //rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_ONE, MICRO_MOV_RM};
-        rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
+        rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_ONES, MICRO_MOV_RM};
         rom[11] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,    MICRO_MOV_ALU_R};
 
         // @info: Long jump: tttcccdddd (t = type, c = jump condition, d = jump
         // destination)
         rom[12] = {3'b101, MICRO_JMP_XC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
-        rom[13] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_ALU_B, MICRO_MOV_DISP};
-        rom[14] = {2'b01, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_ADD, 2'b00, MICRO_MOV_ALU_A, MICRO_MOV_PC};
+        // @note: Can make this 2 microinstructions, but v30mz runs in 3.
+        rom[13] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[14] = {2'b01, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_ADD, 2'b01, MICRO_MOV_DISP, MICRO_MOV_PC};
         rom[15] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC, MICRO_MOV_ALU_R};
 
         // ALU ACC IMM
-        //rom[16] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_IMM, MICRO_MOV_AW};
+        rom[16] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_IMM, MICRO_MOV_AW};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -379,6 +380,9 @@ module execution_unit
 
         for (int i = 0; i < 4; i++)
             translation_rom[{6'b001000, i[1:0]}] = 9'd10;        // AND r -> rm
+
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b0010010, i[0]}] = 9'd16;         // AND imm -> r
 
         translation_rom[8'b01110011] = 9'd12;                    // BNC
 
@@ -427,7 +431,6 @@ module execution_unit
         ((mov_from == READ_SRC_DISP) ? ((mov_src_size == 1) ? disp: {8'd0, disp[7:0]}):
                                          reg_read));
 
-    // @todo @warning: READ_SRC_ALU not implemented!
     assign mov_data =
          (mov_from == READ_SRC_ALU)  ? ((mov_src_size == 1) ? alu_r: {8'd0, alu_r[7:0]}):
                                         mov_data_alu;
@@ -488,18 +491,6 @@ module execution_unit
         .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
     );
 
-    // @todo: When we changed these to reg, we forgot an important thing,
-    // namely that we have to set alu_b to 1 if it's not set. I think we
-    // should try to change them back to wires. Also, we should try changing
-    // our interprentation of the mov micro commands to alu_a and alu_b movs.
-    // For alu_a, everything works the same, but we need to add some wiring
-    // for alu_b I guess. We also need to add the zero and 1 registers. These
-    // are constant registers meant to feed the alu inputs such as in the case
-    // of ALU 1, rm.
-    // Alternatively, we need to add some bits for the alu operands. The NEC
-    // v30 had 29bit-wide microinstructions. This is 7 bits extra. Instead of
-    // alu_a, and alu_b of mov destinations, we use a temp register, which
-    // will be available as alu operand.
     reg [15:0] alu_a, alu_b;
     reg [4:0] alu_op = 0;
     reg alu_size = 0;
@@ -527,7 +518,7 @@ module execution_unit
     assign micro_mov_src = micro_op[4:0];
 
     wire [4:0] micro_mov_dst;
-    assign micro_mov_dst = micro_op[9:5];
+    assign micro_mov_dst = (micro_op_type[2:1] == 2'b01)? MICRO_MOV_ALU_A: micro_op[9:5];
 
     assign micro_op = rom[microaddress + {5'd0, microprogram_counter}];
 
@@ -683,11 +674,6 @@ module execution_unit
                 mov_dst_size <= byte_word_field;
                 alu_a <= mov_data_alu;
             end
-            else if(micro_mov_dst == MICRO_MOV_ALU_B)
-            begin
-                mov_dst_size <= byte_word_field;
-                alu_b <= mov_data_alu;
-            end
             else if(micro_mov_dst >= MICRO_MOV_AW)
             begin
                 // Destination is word register
@@ -715,6 +701,47 @@ module execution_unit
                 regfile_we   <= 1;
                 reg_dst      <= {micro_mov_dst - MICRO_MOV_AL}[2:0];
                 mov_dst_size <= 0;
+            end
+
+            if(micro_op_type[2:1] == 2'b01)
+            begin
+                case(micro_op[9:5])
+                    MICRO_MOV_ONES:
+                        alu_b <= 1;
+
+                    MICRO_MOV_ZERO:
+                        alu_b <= 0;
+
+                    MICRO_MOV_R:
+                    begin
+                        if(byte_word_field == 1)
+                            alu_b <= registers[dst_operand[2:0]];
+                        else if(dst_operand[2] == 0)
+                            alu_b <= {8'd0, registers[{1'd0, dst_operand[1:0]}][7:0]};
+                        else
+                            alu_b <= {8'd0, registers[{1'd0, dst_operand[1:0]}][15:8]};
+                    end
+
+                    MICRO_MOV_AL,
+                    MICRO_MOV_AH:
+                        alu_b <= {8'd0, registers[{micro_op[9:5] - MICRO_MOV_AL}[2:0]][15:8]};
+
+                    MICRO_MOV_AW, MICRO_MOV_CW, MICRO_MOV_DW, MICRO_MOV_BW,
+                    MICRO_MOV_SP, MICRO_MOV_BP, MICRO_MOV_IX, MICRO_MOV_IY:
+                        alu_b <= registers[{micro_op[9:5] - MICRO_MOV_AW}[2:0]];
+
+                    MICRO_MOV_PC:
+                        alu_b <= PC;
+
+                    MICRO_MOV_DISP:
+                        alu_b <= disp;
+
+                    MICRO_MOV_IMM:
+                        alu_b <= imm;
+
+                    default:
+                        alu_b <= 16'hCAFE;
+                endcase
             end
 
             // ** Handle alu register writeback **
