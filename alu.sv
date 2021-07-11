@@ -198,10 +198,11 @@ module alu
             ALUOP_AND:
             begin
                 R = A & B;
-                flags[ALU_FLAG_V] = (A[msb] == B[msb]) && (R[msb] != A[msb]);
-                flags[ALU_FLAG_Z] = (R == 0);
-                flags[ALU_FLAG_P] = parity(R);
-                flags[ALU_FLAG_S] = R[msb];
+                flags[ALU_FLAG_CY] = 0;
+                flags[ALU_FLAG_V]  = 0;
+                flags[ALU_FLAG_Z]  = (R == 0);
+                flags[ALU_FLAG_P]  = parity(R);
+                flags[ALU_FLAG_S]  = R[msb];
             end
 
             ALUOP_ADD:

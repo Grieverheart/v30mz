@@ -384,7 +384,8 @@ module execution_unit
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b0010010, i[0]}] = 9'd16;         // AND imm -> r
 
-        translation_rom[8'b01110011] = 9'd12;                    // BNC
+        for (int i = 0; i < 16; i++)
+            translation_rom[{4'b0111, i[3:0]}] = 9'd12;          // BNC
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -970,6 +971,17 @@ module execution_unit
                                     4'h3:
                                     begin
                                         if(alu_flags_r[ALU_FLAG_CY] == 0)
+                                        begin
+                                            microprogram_counter <= 0;
+                                            microaddress <= jump_table[micro_jmp_destination];
+                                            branch_taken <= 1;
+                                            state <= STATE_EXECUTE;
+                                        end
+                                    end
+
+                                    4'h5:
+                                    begin
+                                        if(alu_flags_r[ALU_FLAG_Z] == 0)
                                         begin
                                             microprogram_counter <= 0;
                                             microaddress <= jump_table[micro_jmp_destination];
