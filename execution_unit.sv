@@ -340,6 +340,7 @@ module execution_unit
         // @info: ALU: ttu??aaaaa (t = type, u = use alu result, a = alu op)
         // @note: If MICRO_ALU_USE_RESULT but src is memory, then don't write
         // result back this step but instead run the next microinstruction.
+        //rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_ONE, MICRO_MOV_RM};
         rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_ALU_A, MICRO_MOV_RM};
         rom[11] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,    MICRO_MOV_ALU_R};
 
@@ -350,6 +351,9 @@ module execution_unit
         rom[13] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_ALU_B, MICRO_MOV_DISP};
         rom[14] = {2'b01, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_ADD, 2'b00, MICRO_MOV_ALU_A, MICRO_MOV_PC};
         rom[15] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC, MICRO_MOV_ALU_R};
+
+        // ALU ACC IMM
+        //rom[16] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_IMM, MICRO_MOV_AW};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -373,7 +377,10 @@ module execution_unit
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1101000, i[0]}] = 9'd10;         // ROL 1 -> rm
 
-        translation_rom[8'b01110011] = 9'd12;         // ROL 1 -> rm
+        for (int i = 0; i < 4; i++)
+            translation_rom[{6'b001000, i[1:0]}] = 9'd10;        // AND r -> rm
+
+        translation_rom[8'b01110011] = 9'd12;                    // BNC
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -419,6 +426,8 @@ module execution_unit
         ((mov_from == READ_SRC_IMM)  ? ((mov_src_size == 1) ? imm: {8'd0, imm[7:0]}):
         ((mov_from == READ_SRC_DISP) ? ((mov_src_size == 1) ? disp: {8'd0, disp[7:0]}):
                                          reg_read));
+
+    // @todo @warning: READ_SRC_ALU not implemented!
     assign mov_data =
          (mov_from == READ_SRC_ALU)  ? ((mov_src_size == 1) ? alu_r: {8'd0, alu_r[7:0]}):
                                         mov_data_alu;
@@ -479,7 +488,19 @@ module execution_unit
         .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
     );
 
-    wire [15:0] alu_a, alu_b;
+    // @todo: When we changed these to reg, we forgot an important thing,
+    // namely that we have to set alu_b to 1 if it's not set. I think we
+    // should try to change them back to wires. Also, we should try changing
+    // our interprentation of the mov micro commands to alu_a and alu_b movs.
+    // For alu_a, everything works the same, but we need to add some wiring
+    // for alu_b I guess. We also need to add the zero and 1 registers. These
+    // are constant registers meant to feed the alu inputs such as in the case
+    // of ALU 1, rm.
+    // Alternatively, we need to add some bits for the alu operands. The NEC
+    // v30 had 29bit-wide microinstructions. This is 7 bits extra. Instead of
+    // alu_a, and alu_b of mov destinations, we use a temp register, which
+    // will be available as alu operand.
+    reg [15:0] alu_a, alu_b;
     reg [4:0] alu_op = 0;
     reg alu_size = 0;
     wire [15:0] alu_r;
@@ -492,9 +513,6 @@ module execution_unit
         .A(alu_a), .B(alu_b), .R(alu_r),
         .flags(alu_flags)
     );
-
-    assign alu_a = (micro_mov_dst == MICRO_MOV_ALU_A)? mov_data_alu: 1;
-    assign alu_b = (micro_mov_dst == MICRO_MOV_ALU_B)? mov_data_alu: 1;
 
     // @note: This might play a more important role later, e.g. we might have
     // a microinstruction flag telling us if we should we for the read/write
@@ -598,6 +616,11 @@ module execution_unit
                 mov_from     <= READ_SRC_MEM;
                 mov_src_size <= byte_word_field;
             end
+            else if(micro_mov_src == MICRO_MOV_ALU_R)
+            begin
+                mov_from     <= READ_SRC_ALU;
+                mov_src_size <= byte_word_field;
+            end
             else if(micro_mov_src >= MICRO_MOV_AW)
             begin
                 // Source is word register
@@ -658,10 +681,12 @@ module execution_unit
             else if(micro_mov_dst == MICRO_MOV_ALU_A)
             begin
                 mov_dst_size <= byte_word_field;
+                alu_a <= mov_data_alu;
             end
             else if(micro_mov_dst == MICRO_MOV_ALU_B)
             begin
                 mov_dst_size <= byte_word_field;
+                alu_b <= mov_data_alu;
             end
             else if(micro_mov_dst >= MICRO_MOV_AW)
             begin
@@ -814,8 +839,6 @@ module execution_unit
             queue_flush   <= 0;
             queue_suspend <= 0;
             branch_taken  <= 0;
-            // @todo: This is wrong!
-            microaddress  <= translation_rom[opcode];
 
             // @todo: Allow reading when instruction is done or nearly done.
             // Perhaps we can achieve this by removing the execute state,
@@ -840,6 +863,9 @@ module execution_unit
 
             if(state <= STATE_IMM_HIGH_READ)
             begin
+                if(state == STATE_OPCODE_READ)
+                    microaddress  <= translation_rom[opcode];
+
                 // @note: I thought there might be a problem here using
                 // sequential logic: If the queue is empty on this cycle but
                 // receiving data the next cycle, queue_empty will be false

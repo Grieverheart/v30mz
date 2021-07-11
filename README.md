@@ -8,7 +8,6 @@ Currently stuck at branch instruction 0x73 of bootrom.
 
 # TODO
 
-* Fix disp_size for at least instruction 0x73.
-* Implement branching microinstruction.
+* Fix alu D0, and alu handling in general. We need to be able to specify both operands in a single microinstruction.
 * Implement pipelining by decoupling the execution state.
 * Implement even/odd address reading/writing.
