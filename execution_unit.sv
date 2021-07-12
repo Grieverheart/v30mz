@@ -356,6 +356,12 @@ module execution_unit
         // ALU ACC IMM
         rom[16] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_IMM, MICRO_MOV_AW};
 
+        // INC RM
+        rom[17] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_ONES, MICRO_MOV_RM};
+
+        rom[18] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_IMM, MICRO_MOV_RM};
+        rom[19] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_ALU_R};
+
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
 
@@ -386,6 +392,12 @@ module execution_unit
 
         for (int i = 0; i < 16; i++)
             translation_rom[{4'b0111, i[3:0]}] = 9'd12;          // BNC
+
+        for (int i = 0; i < 16; i++)
+            translation_rom[{4'b0100, i[3:0]}] = 9'd17;          // INC/DEC reg16
+
+        for (int i = 0; i < 4; i++)
+            translation_rom[{6'b1000_00, i[1:0]}] = 9'd18;       // ALU imm -> rm
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -524,8 +536,8 @@ module execution_unit
     assign micro_op = rom[microaddress + {5'd0, microprogram_counter}];
 
     // @note: Also run next microinstruction when we have alu writeback.
-    wire alu_mem_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod != 2'b11);
-    wire alu_reg_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod == 2'b11);
+    wire alu_mem_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod != 2'b11 && alu_op != ALUOP_CMP);
+    wire alu_reg_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod == 2'b11 && alu_op != ALUOP_CMP);
     reg branch_taken = 0;
     assign instruction_nearly_done = micro_op[10];
     wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken);
@@ -815,7 +827,9 @@ module execution_unit
                                  (opcode[7:4] == 4'b1000)?    {2'b0, regm}:
                                 ((opcode[7:2] == 6'b110100)?  ALUOP_ROL + {2'b0, regm}:
                                 ((opcode[7:1] == 7'b1100000)? ALUOP_ROL + {2'b0, regm}:
-                                                              {2'b0, opcode[5:3]}));
+                                ((opcode[7:1] == 7'b1111111)? ALUOP_INC + {2'b0, regm}:
+                                ((opcode[7:3] == 5'b01000)?   ALUOP_INC + {2'b0, opcode[5:3]}:
+                                                              {2'b0, opcode[5:3]}))));
 
                         MICRO_ALU_OP_AND:
                             alu_op <= ALUOP_AND;

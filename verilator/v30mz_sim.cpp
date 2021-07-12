@@ -61,7 +61,7 @@ int main(int argc, char** argv, char** env)
 
     int timestamp = 0;
     bool data_sent = false;
-    while (timestamp < 200 && !Verilated::gotFinish())
+    while (timestamp < 400 && !Verilated::gotFinish())
     {
         v30mz->clk = 0;
         v30mz->eval();
