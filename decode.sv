@@ -70,8 +70,7 @@ module decode
     wire need_disp_mod = (rm == 3'b110 && mod == 0) || ^mod;
     // @note: Note sure if I like this approach.
     wire disp_size_mod = (rm == 3'b110 && mod == 0)? 1: mod[1];
-    wire disp_size_from_mod = !opcode[7] | (!opcode[5] & !opcode[4]) | (opcode[6] & opcode[4]);
-    assign disp_size = !disp_size_from_mod | (need_modrm & disp_size_mod);
+    assign disp_size = (opcode[7:1] == 7'b1110100) || (need_modrm && disp_size_mod);
 
     assign byte_word_field =
         (opcode[7:4] != 4'b1011 && opcode[7:2] != 6'b100011)? opcode[0]: opcode[3];
@@ -344,7 +343,7 @@ module decode
                 need_imm   <= 0;
                 imm_size   <= 0;
                 dst        <= 0;
-                src        <= 0;
+                src        <= {1'b0, opcode[2:0]};
             end
 
             8'b0100_1???: // DEC reg16
@@ -354,7 +353,7 @@ module decode
                 need_imm   <= 0;
                 imm_size   <= 0;
                 dst        <= 0;
-                src        <= 0;
+                src        <= {1'b0, opcode[2:0]};
             end
 
             8'b0101_0???: // PUSH reg16
@@ -364,7 +363,7 @@ module decode
                 need_imm   <= 0;
                 imm_size   <= 0;
                 dst        <= 0;
-                src        <= 0;
+                src        <= {1'b0, opcode[2:0]};
             end
 
             8'b0101_1???: // POP reg16
@@ -374,7 +373,7 @@ module decode
                 need_imm   <= 0;
                 imm_size   <= 0;
                 dst        <= 0;
-                src        <= 0;
+                src        <= {1'b0, opcode[2:0]};
             end
 
             8'b0111_????: // Branch short-label
@@ -577,7 +576,7 @@ module decode
                 src        <= 0;
             end
 
-            8'b1100_000?: // ROR/ROL/RCR/RCL/SAL/SHL/SAR/SHR IMM8/16
+            8'b1100_000?: // ROR/ROL/RCR/RCL/SAL/SHL/SAR/SHR RM IMM8
             begin
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
@@ -632,6 +631,26 @@ module decode
                 need_modrm <= 0;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 1;
+                imm_size   <= 0;
+                dst        <= 0;
+                src        <= 0;
+            end
+
+            8'b1110_1001: // BR near-label
+            begin
+                need_modrm <= 0;
+                need_disp  <= 1;
+                need_imm   <= 0;
+                imm_size   <= 0;
+                dst        <= 0;
+                src        <= 0;
+            end
+
+            8'b1110_1011: // BR short-label
+            begin
+                need_modrm <= 0;
+                need_disp  <= 1;
+                need_imm   <= 0;
                 imm_size   <= 0;
                 dst        <= 0;
                 src        <= 0;

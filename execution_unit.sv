@@ -256,7 +256,8 @@ module execution_unit
         MICRO_ALU_USE_RESULT    = 1'b1;
 
     localparam
-        MICRO_JMP_XC = 3'b0;
+        MICRO_JMP_XC = 3'd0,
+        MICRO_JMP_UC = 3'd1;
 
     // @note:
     // Alu ops used by 8086 microcode.
@@ -362,6 +363,9 @@ module execution_unit
         rom[18] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_IMM, MICRO_MOV_RM};
         rom[19] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_ALU_R};
 
+        // BR near-label
+        rom[20] = {3'b101, MICRO_JMP_UC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
 
@@ -398,6 +402,9 @@ module execution_unit
 
         for (int i = 0; i < 4; i++)
             translation_rom[{6'b1000_00, i[1:0]}] = 9'd18;       // ALU imm -> rm
+
+        translation_rom[8'b1110_1001] = 9'd20;                  // BR near-label
+        translation_rom[8'b1110_1011] = 9'd20;                  // BR short-label
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -441,8 +448,8 @@ module execution_unit
     wire [15:0] mov_data_alu =
          (mov_from == READ_SRC_MEM)  ? ((mov_src_size == 1) ? data_in: {8'd0, data_in[7:0]}):
         ((mov_from == READ_SRC_IMM)  ? ((mov_src_size == 1) ? imm: {8'd0, imm[7:0]}):
-        ((mov_from == READ_SRC_DISP) ? ((mov_src_size == 1) ? disp: {8'd0, disp[7:0]}):
-                                         reg_read));
+        ((mov_from == READ_SRC_DISP) ? disp_sign_extended:
+                                       reg_read));
 
     assign mov_data =
          (mov_from == READ_SRC_ALU)  ? ((mov_src_size == 1) ? alu_r: {8'd0, alu_r[7:0]}):
@@ -494,6 +501,7 @@ module execution_unit
     );
 
     wire [19:0] physical_address;
+    wire [15:0] disp_sign_extended = (disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}; // Sign extend
     physical_address_calculator pac
     (
         .physical_address(physical_address),
@@ -501,7 +509,7 @@ module execution_unit
         .segment(segment_registers[ea_segment_reg]),
         .base(registers[ea_base_reg[2:0]]),
         .index(registers[ea_index_reg[2:0]]),
-        .displacement((disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}) // Sign extend
+        .displacement(disp_sign_extended)
     );
 
     reg [15:0] alu_a, alu_b;
@@ -613,7 +621,7 @@ module execution_unit
             begin
                 // Source is disp.
                 mov_from     <= READ_SRC_DISP;
-                mov_src_size <= disp_size;
+                mov_src_size <= 1;
             end
             else if(micro_mov_src == MICRO_MOV_DI)
             begin
@@ -646,7 +654,7 @@ module execution_unit
                     reg_src  <= {micro_mov_src - MICRO_MOV_AW}[2:0];
                 end
             end
-            else
+            else if(micro_mov_src == MICRO_MOV_AL || micro_mov_src == MICRO_MOV_AH)
             begin
                 // Source is byte register
                 reg_src <= {micro_mov_src - MICRO_MOV_AL}[2:0] << 2;
@@ -708,7 +716,7 @@ module execution_unit
                     reg_dst    <= {micro_mov_dst - MICRO_MOV_AW}[2:0];
                 end
             end
-            else
+            else if(micro_mov_dst == MICRO_MOV_AL || micro_mov_dst == MICRO_MOV_AH)
             begin
                 // Destination is byte register
                 regfile_we   <= 1;
@@ -747,7 +755,7 @@ module execution_unit
                         alu_b <= PC;
 
                     MICRO_MOV_DISP:
-                        alu_b <= disp;
+                        alu_b <= disp_sign_extended;
 
                     MICRO_MOV_IMM:
                         alu_b <= imm;
@@ -1009,6 +1017,15 @@ module execution_unit
                                     end
                                 endcase
                             end
+
+                            MICRO_JMP_UC:
+                            begin
+                                microprogram_counter <= 0;
+                                microaddress <= jump_table[micro_jmp_destination];
+                                branch_taken <= 1;
+                                state <= STATE_EXECUTE;
+                            end
+
                             default:
                             begin
                             end
