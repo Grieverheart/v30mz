@@ -101,10 +101,10 @@ module v30mz
         .registers(segment_registers)
     );
 
-    wire [15:0] PS  = segment_registers[0];
-    wire [15:0] SS  = segment_registers[1];
-    wire [15:0] DS0 = segment_registers[2];
-    wire [15:0] DS1 = segment_registers[3];
+    wire [15:0] DS1 = segment_registers[0];
+    wire [15:0] PS  = segment_registers[1];
+    wire [15:0] SS  = segment_registers[2];
+    wire [15:0] DS0 = segment_registers[3];
 
     // Program status word
     // The PSW consists of 6 kinds of status flag and 4 kinds of

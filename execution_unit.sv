@@ -323,6 +323,7 @@ module execution_unit
 
         //        type,    b,                    b                      nl/nx, destination,    source
         rom[0]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE}; // NOP
+
         rom[1]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_R,    MICRO_MOV_RM};
         rom[2]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,   MICRO_MOV_R};
         rom[3]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,   MICRO_MOV_IMM};
@@ -363,7 +364,7 @@ module execution_unit
         rom[18] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_IMM, MICRO_MOV_RM};
         rom[19] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_ALU_R};
 
-        // BR near-label
+        // BR near/short-label
         rom[20] = {3'b101, MICRO_JMP_UC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
         for (int i = 0; i < 256; i++)
@@ -382,8 +383,12 @@ module execution_unit
         translation_rom[8'b10001100] = 9'd2;                     // MOV sreg -> rm
         translation_rom[8'b10001110] = 9'd1;                     // MOV rm -> sreg
         translation_rom[8'b11101010] = 9'd4;                     // BR far_label
-        translation_rom[8'b11100110] = 9'd6;                     // OUT acc -> imm8
-        translation_rom[8'b11100100] = 9'd8;                     // IN acc -> imm8
+
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1110011, i[0]}] = 9'd6;          // OUT acc -> imm8
+
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1110010, i[0]}] = 9'd8;          // IN acc -> imm8
 
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1101000, i[0]}] = 9'd10;         // ROL 1 -> rm
@@ -401,10 +406,13 @@ module execution_unit
             translation_rom[{4'b0100, i[3:0]}] = 9'd17;          // INC/DEC reg16
 
         for (int i = 0; i < 4; i++)
-            translation_rom[{6'b1000_00, i[1:0]}] = 9'd18;       // ALU imm -> rm
+            translation_rom[{6'b1000_00, i[1:0]}] = 9'd18;       // ALU imm -> rm (Arithmetic family)
 
-        translation_rom[8'b1110_1001] = 9'd20;                  // BR near-label
-        translation_rom[8'b1110_1011] = 9'd20;                  // BR short-label
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1100_000, i[0]}] = 9'd18;        // ALU imm -> rm (Shift family)
+
+        translation_rom[8'b1110_1001] = 9'd20;                   // BR near-label
+        translation_rom[8'b1110_1011] = 9'd20;                   // BR short-label
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -643,10 +651,10 @@ module execution_unit
                     mov_from <= READ_SRC_PC;
                     reg_src  <= 0;
                 end
-                else if(micro_mov_src >= MICRO_MOV_PS)
+                else if(micro_mov_src >= MICRO_MOV_DS1)
                 begin
                     mov_from <= READ_SRC_SREG;
-                    reg_src  <= {micro_mov_src - MICRO_MOV_PS}[2:0];
+                    reg_src  <= {micro_mov_src - MICRO_MOV_DS1}[2:0];
                 end
                 else
                 begin
@@ -705,10 +713,10 @@ module execution_unit
                     // @note: Assume we are always moving from word registers.
                     reg_dst <= 0;
                 end
-                else if(micro_mov_dst >= MICRO_MOV_PS)
+                else if(micro_mov_dst >= MICRO_MOV_DS1)
                 begin
                     sregfile_we <= 1;
-                    reg_dst     <= {micro_mov_dst - MICRO_MOV_PS}[2:0];
+                    reg_dst     <= {micro_mov_dst - MICRO_MOV_DS1}[2:0];
                 end
                 else
                 begin
@@ -990,7 +998,18 @@ module execution_unit
                             MICRO_JMP_XC:
                             begin
                                 case(opcode[3:0])
-                                    4'h3:
+                                    4'h2: // BC
+                                    begin
+                                        if(alu_flags_r[ALU_FLAG_CY] == 1)
+                                        begin
+                                            microprogram_counter <= 0;
+                                            microaddress <= jump_table[micro_jmp_destination];
+                                            branch_taken <= 1;
+                                            state <= STATE_EXECUTE;
+                                        end
+                                    end
+
+                                    4'h3: // BNC
                                     begin
                                         if(alu_flags_r[ALU_FLAG_CY] == 0)
                                         begin
@@ -1001,7 +1020,18 @@ module execution_unit
                                         end
                                     end
 
-                                    4'h5:
+                                    4'h4: // BZ
+                                    begin
+                                        if(alu_flags_r[ALU_FLAG_Z] == 1)
+                                        begin
+                                            microprogram_counter <= 0;
+                                            microaddress <= jump_table[micro_jmp_destination];
+                                            branch_taken <= 1;
+                                            state <= STATE_EXECUTE;
+                                        end
+                                    end
+
+                                    4'h5: // BNZ
                                     begin
                                         if(alu_flags_r[ALU_FLAG_Z] == 0)
                                         begin

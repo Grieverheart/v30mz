@@ -13,9 +13,9 @@ module segment_register_file
     begin
         if(reset)
         begin
-            registers[0] <= 16'hFFFF;
-            for(int i = 1; i < 4; ++i)
+            for(int i = 0; i < 4; ++i)
                 registers[i] <= 16'd0;
+            registers[1] <= 16'hFFFF;
         end
         else
         begin

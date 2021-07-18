@@ -11,17 +11,17 @@ enum [4:0]
     ALUOP_XOR  = 5'd6,
     ALUOP_CMP  = 5'd7,
 
-    ALUOP_ROL,
-    ALUOP_ROR,
-    ALUOP_ROLC,
-    ALUOP_RORC,
-    ALUOP_SHL,
-    ALUOP_SHR,
-    ALUOP_SHLA, // Does not exist, just ALUOP_SHL
-    ALUOP_SHRA,
+    ALUOP_ROL  = 5'd8,
+    ALUOP_ROR  = 5'd9,
+    ALUOP_ROLC = 5'd10,
+    ALUOP_RORC = 5'd11,
+    ALUOP_SHL  = 5'd12,
+    ALUOP_SHR  = 5'd13,
+    ALUOP_SHLA = 5'd14, // Does not exist, just ALUOP_SHL
+    ALUOP_SHRA = 5'd15,
 
-    ALUOP_INC,
-    ALUOP_DEC
+    ALUOP_INC  = 5'd16,
+    ALUOP_DEC  = 5'd17
 } AluOp;
 
 enum [2:0]
