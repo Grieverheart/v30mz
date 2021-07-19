@@ -68,7 +68,8 @@ module execution_unit
         READ_SRC_IMM  = 3'd3,
         READ_SRC_DISP = 3'd4,
         READ_SRC_MEM  = 3'd5,
-        READ_SRC_ALU  = 3'd6;
+        READ_SRC_ALU  = 3'd6,
+        READ_SRC_TMP  = 3'd7;
 
     //localparam [2:0]
     //    LJUMP_COND_UNC = 3'd0,
@@ -424,6 +425,7 @@ module execution_unit
 
     end
 
+    reg [15:0] reg_tmp; // temp register which can be used as read source.
     reg regfile_we;
     wire [2:0] regfile_write_id;
     wire [15:0] regfile_write_data;
@@ -442,9 +444,10 @@ module execution_unit
     wire [15:0] reg_read =
          (mov_from == READ_SRC_SREG) ? segment_registers[reg_src[1:0]]:
         ((mov_from == READ_SRC_PC) ? PC:
+        ((mov_from == READ_SRC_TMP) ? reg_tmp:
         ((mov_src_size == 1) ? registers[reg_src]:
         ((reg_src[2]   == 0) ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
-                               {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]})));
+                               {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]}))));
 
     // @note: We have introduced a combinatorial loop here because of
     // 'READ_SRC_ALU'. Fortunately, the loop is never triggered, at least not
@@ -617,6 +620,27 @@ module execution_unit
             if(translation_rom[opcode] == 0)
             begin
                 case(opcode)
+                    8'hAA:
+                        error <= `__LINE__;
+
+                    8'hAB: // STMW
+                    begin
+                        bus_command     <= BUS_COMMAND_MEM_WRITE;
+                        bus_address     <= physical_address; // @todo: Correct address
+                        data_out        <= registers[0];
+                        read_write_wait <= 1;
+
+                        if(bus_command_done)
+                        begin
+                            reg_dst      <= 7;
+                            mov_from     <= READ_SRC_TMP;
+                            mov_src_size <= 1;
+                            mov_dst_size <= 1;
+                            regfile_we   <= 1;
+                            reg_tmp      <= registers[7] + 2;
+                        end
+                    end
+
                     8'hF3:;
 
                     8'hFA:
