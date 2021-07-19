@@ -78,6 +78,7 @@ module execution_unit
     reg [7:0] modrm;
     reg [15:0] imm;
     reg [15:0] disp;
+    reg [15:0] error;
 
     wire has_prefix;
     wire need_modrm;
@@ -367,6 +368,8 @@ module execution_unit
         // BR near/short-label
         rom[20] = {3'b101, MICRO_JMP_UC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
+        rom[21] = {3'b101, MICRO_JMP_UC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
 
@@ -534,6 +537,14 @@ module execution_unit
         .flags(alu_flags)
     );
 
+    localparam [1:0]
+        CTRL_FLAG_MD  = 2'd0, // Mode flag
+        CTRL_FLAG_DIR = 2'd1, // Direction flag
+        CTRL_FLAG_IE  = 2'd2, // Interrupt enable flag
+        CTRL_FLAG_BRK = 2'd3; // Break flag
+
+    reg [3:0] control_flags;
+
     // @note: This might play a more important role later, e.g. we might have
     // a microinstruction flag telling us if we should we for the read/write
     // before running the next microinstruction.
@@ -574,6 +585,8 @@ module execution_unit
 
     always_latch
     begin
+        error <= 0;
+
         if(bus_command_done)
         begin
             read_write_wait <= 0;
@@ -601,285 +614,303 @@ module execution_unit
         // * Handle move command *
         if(state == STATE_EXECUTE)
         begin
-            // ** Handle move source reading **
-            if(micro_mov_src == MICRO_MOV_RM && mod != 2'b11)
+            if(translation_rom[opcode] == 0)
             begin
-                // Source is memory
-                bus_address     <= physical_address;
-                bus_command     <= BUS_COMMAND_MEM_READ;
-                read_write_wait <= 1;
+                case(opcode)
+                    8'hF3:;
 
-                mov_from     <= READ_SRC_MEM;
-                mov_src_size <= byte_word_field;
-            end
-            else if(micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R)
-            begin
-                // Source is register specified by modrm.
-                reg_src      <= src_operand[2:0];
-                mov_from     <= src_operand[3]? READ_SRC_SREG: READ_SRC_REG;
-                mov_src_size <= byte_word_field;
-            end
-            else if(micro_mov_src == MICRO_MOV_IMM)
-            begin
-                // Source is immediate.
-                mov_from     <= READ_SRC_IMM;
-                mov_src_size <= imm_size;
-            end
-            else if(micro_mov_src == MICRO_MOV_DISP)
-            begin
-                // Source is disp.
-                mov_from     <= READ_SRC_DISP;
-                mov_src_size <= 1;
-            end
-            else if(micro_mov_src == MICRO_MOV_DI)
-            begin
-                mov_from     <= READ_SRC_MEM;
-                mov_src_size <= byte_word_field;
-            end
-            else if(micro_mov_src == MICRO_MOV_ALU_R)
-            begin
-                mov_from     <= READ_SRC_ALU;
-                mov_src_size <= byte_word_field;
-            end
-            else if(micro_mov_src >= MICRO_MOV_AW)
-            begin
-                // Source is word register
-                mov_src_size  <= 1;
+                    8'hFA:
+                        control_flags[CTRL_FLAG_IE] <= 0;
 
-                if(micro_mov_src  == MICRO_MOV_PC)
-                begin
-                    mov_from <= READ_SRC_PC;
-                    reg_src  <= 0;
-                end
-                else if(micro_mov_src >= MICRO_MOV_DS1)
-                begin
-                    mov_from <= READ_SRC_SREG;
-                    reg_src  <= {micro_mov_src - MICRO_MOV_DS1}[2:0];
-                end
-                else
-                begin
-                    mov_from <= READ_SRC_REG;
-                    reg_src  <= {micro_mov_src - MICRO_MOV_AW}[2:0];
-                end
-            end
-            else if(micro_mov_src == MICRO_MOV_AL || micro_mov_src == MICRO_MOV_AH)
-            begin
-                // Source is byte register
-                reg_src <= {micro_mov_src - MICRO_MOV_AL}[2:0] << 2;
-                mov_src_size <= 0;
-            end
-
-            // ** Handle move destination writing **
-            if(micro_mov_dst == MICRO_MOV_RM && need_modrm && mod != 2'b11)
-            begin
-                // Destination is memory
-                bus_address     <= physical_address;
-                bus_command     <= BUS_COMMAND_MEM_WRITE;
-                read_write_wait <= 1;
-                mov_dst_size    <= byte_word_field;
-            end
-            else if((micro_mov_dst == MICRO_MOV_RM) || (micro_mov_dst == MICRO_MOV_R))
-            begin
-                // Destination is register specified by modrm.
-                reg_dst      <= dst_operand[2:0];
-                mov_dst_size <= byte_word_field;
-                if(dst_operand[3])
-                    sregfile_we <= 1;
-                else
-                    regfile_we  <= 1;
-            end
-            else if(micro_mov_dst == MICRO_MOV_DO)
-            begin
-                data_out     <= mov_data;
-                mov_dst_size <= byte_word_field;
-            end
-            else if(micro_mov_dst == MICRO_MOV_ADD)
-            begin
-                bus_address <= {4'd0, mov_data};
-                mov_dst_size <= 1;
-            end
-            else if(micro_mov_dst == MICRO_MOV_ALU_A)
-            begin
-                mov_dst_size <= byte_word_field;
-                alu_a <= mov_data_alu;
-            end
-            else if(micro_mov_dst >= MICRO_MOV_AW)
-            begin
-                // Destination is word register
-                mov_dst_size <= 1;
-
-                if(micro_mov_dst == MICRO_MOV_PC)
-                begin
-                    // @note: Assume we are always moving from word registers.
-                    reg_dst <= 0;
-                end
-                else if(micro_mov_dst >= MICRO_MOV_DS1)
-                begin
-                    sregfile_we <= 1;
-                    reg_dst     <= {micro_mov_dst - MICRO_MOV_DS1}[2:0];
-                end
-                else
-                begin
-                    regfile_we <= 1;
-                    reg_dst    <= {micro_mov_dst - MICRO_MOV_AW}[2:0];
-                end
-            end
-            else if(micro_mov_dst == MICRO_MOV_AL || micro_mov_dst == MICRO_MOV_AH)
-            begin
-                // Destination is byte register
-                regfile_we   <= 1;
-                reg_dst      <= {micro_mov_dst - MICRO_MOV_AL}[2:0];
-                mov_dst_size <= 0;
-            end
-
-            if(micro_op_type[2:1] == 2'b01)
-            begin
-                case(micro_op[9:5])
-                    MICRO_MOV_ONES:
-                        alu_b <= 1;
-
-                    MICRO_MOV_ZERO:
-                        alu_b <= 0;
-
-                    MICRO_MOV_R:
-                    begin
-                        if(byte_word_field == 1)
-                            alu_b <= registers[dst_operand[2:0]];
-                        else if(dst_operand[2] == 0)
-                            alu_b <= {8'd0, registers[{1'd0, dst_operand[1:0]}][7:0]};
-                        else
-                            alu_b <= {8'd0, registers[{1'd0, dst_operand[1:0]}][15:8]};
-                    end
-
-                    MICRO_MOV_AL,
-                    MICRO_MOV_AH:
-                        alu_b <= {8'd0, registers[{micro_op[9:5] - MICRO_MOV_AL}[2:0]][15:8]};
-
-                    MICRO_MOV_AW, MICRO_MOV_CW, MICRO_MOV_DW, MICRO_MOV_BW,
-                    MICRO_MOV_SP, MICRO_MOV_BP, MICRO_MOV_IX, MICRO_MOV_IY:
-                        alu_b <= registers[{micro_op[9:5] - MICRO_MOV_AW}[2:0]];
-
-                    MICRO_MOV_PC:
-                        alu_b <= PC;
-
-                    MICRO_MOV_DISP:
-                        alu_b <= disp_sign_extended;
-
-                    MICRO_MOV_IMM:
-                        alu_b <= imm;
+                    8'hFC:
+                        control_flags[CTRL_FLAG_DIR] <= 0;
 
                     default:
-                        alu_b <= 16'hCAFE;
+                        error <= `__LINE__;
                 endcase
             end
-
-            // ** Handle alu register writeback **
-            if(micro_op_type[2:1] == 2'b01 && micro_alu_use == MICRO_ALU_USE_RESULT)
+            else
             begin
-                if((micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R) && mod == 2'b11)
+                // ** Handle move source reading **
+                if(micro_mov_src == MICRO_MOV_RM && mod != 2'b11)
                 begin
-                    // Destination is register specified by modrm.
-                    reg_dst      <= src_operand[2:0];
-                    mov_dst_size <= byte_word_field;
-                    regfile_we   <= 1;
+                    // Source is memory
+                    bus_address     <= physical_address;
+                    bus_command     <= BUS_COMMAND_MEM_READ;
+                    read_write_wait <= 1;
+
+                    mov_from     <= READ_SRC_MEM;
+                    mov_src_size <= byte_word_field;
+                end
+                else if(micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R)
+                begin
+                    // Source is register specified by modrm.
+                    reg_src      <= src_operand[2:0];
+                    mov_from     <= src_operand[3]? READ_SRC_SREG: READ_SRC_REG;
+                    mov_src_size <= byte_word_field;
+                end
+                else if(micro_mov_src == MICRO_MOV_IMM)
+                begin
+                    // Source is immediate.
+                    mov_from     <= READ_SRC_IMM;
+                    mov_src_size <= imm_size;
+                end
+                else if(micro_mov_src == MICRO_MOV_DISP)
+                begin
+                    // Source is disp.
+                    mov_from     <= READ_SRC_DISP;
+                    mov_src_size <= 1;
+                end
+                else if(micro_mov_src == MICRO_MOV_DI)
+                begin
+                    mov_from     <= READ_SRC_MEM;
+                    mov_src_size <= byte_word_field;
+                end
+                else if(micro_mov_src == MICRO_MOV_ALU_R)
+                begin
+                    mov_from     <= READ_SRC_ALU;
+                    mov_src_size <= byte_word_field;
                 end
                 else if(micro_mov_src >= MICRO_MOV_AW)
                 begin
-                    mov_dst_size <= 1;
+                    // Source is word register
+                    mov_src_size  <= 1;
 
                     if(micro_mov_src  == MICRO_MOV_PC)
                     begin
-                        reg_dst <= 0;
+                        mov_from <= READ_SRC_PC;
+                        reg_src  <= 0;
+                    end
+                    else if(micro_mov_src >= MICRO_MOV_DS1)
+                    begin
+                        mov_from <= READ_SRC_SREG;
+                        reg_src  <= {micro_mov_src - MICRO_MOV_DS1}[2:0];
                     end
                     else
                     begin
-                        regfile_we <= 1;
-                        reg_dst    <= {micro_mov_src - MICRO_MOV_AW}[2:0];
+                        mov_from <= READ_SRC_REG;
+                        reg_src  <= {micro_mov_src - MICRO_MOV_AW}[2:0];
                     end
                 end
                 else if(micro_mov_src == MICRO_MOV_AL || micro_mov_src == MICRO_MOV_AH)
                 begin
-                    // Destination is byte register
-                    regfile_we   <= 1;
-                    reg_dst      <= {micro_mov_src - MICRO_MOV_AL}[2:0];
-                    mov_dst_size <= 0;
+                    // Source is byte register
+                    reg_src <= {micro_mov_src - MICRO_MOV_AL}[2:0] << 2;
+                    mov_src_size <= 0;
                 end
-            end
 
-            case(micro_op_type)
-                // Bus operation
-                3'b110:
+                // ** Handle move destination writing **
+                if(micro_mov_dst == MICRO_MOV_RM && need_modrm && mod != 2'b11)
                 begin
+                    // Destination is memory
+                    bus_address     <= physical_address;
+                    bus_command     <= BUS_COMMAND_MEM_WRITE;
                     read_write_wait <= 1;
+                    mov_dst_size    <= byte_word_field;
+                end
+                else if((micro_mov_dst == MICRO_MOV_RM) || (micro_mov_dst == MICRO_MOV_R))
+                begin
+                    // Destination is register specified by modrm.
+                    reg_dst      <= dst_operand[2:0];
+                    mov_dst_size <= byte_word_field;
+                    if(dst_operand[3])
+                        sregfile_we <= 1;
+                    else
+                        regfile_we  <= 1;
+                end
+                else if(micro_mov_dst == MICRO_MOV_DO)
+                begin
+                    data_out     <= mov_data;
+                    mov_dst_size <= byte_word_field;
+                end
+                else if(micro_mov_dst == MICRO_MOV_ADD)
+                begin
+                    bus_address <= {4'd0, mov_data};
+                    mov_dst_size <= 1;
+                end
+                else if(micro_mov_dst == MICRO_MOV_ALU_A)
+                begin
+                    mov_dst_size <= byte_word_field;
+                    alu_a <= mov_data_alu;
+                end
+                else if(micro_mov_dst >= MICRO_MOV_AW)
+                begin
+                    // Destination is word register
+                    mov_dst_size <= 1;
 
-                    if(micro_bus_op == MICRO_BUS_OP_IO_WRITE)
+                    if(micro_mov_dst == MICRO_MOV_PC)
                     begin
-                        bus_command <= BUS_COMMAND_IO_WRITE;
+                        // @note: Assume we are always moving from word registers.
+                        reg_dst <= 0;
                     end
-                    else if(micro_bus_op == MICRO_BUS_OP_IO_READ)
+                    else if(micro_mov_dst >= MICRO_MOV_DS1)
                     begin
-                        bus_command <= BUS_COMMAND_IO_READ;
-                    end
-                    else if(micro_bus_op == MICRO_BUS_OP_MEM_WRITE)
-                    begin
-                        bus_command <= BUS_COMMAND_MEM_WRITE;
+                        sregfile_we <= 1;
+                        reg_dst     <= {micro_mov_dst - MICRO_MOV_DS1}[2:0];
                     end
                     else
                     begin
-                        bus_command <= BUS_COMMAND_MEM_READ;
+                        regfile_we <= 1;
+                        reg_dst    <= {micro_mov_dst - MICRO_MOV_AW}[2:0];
                     end
                 end
-                // alu operation
-                3'b010, 3'b011:
+                else if(micro_mov_dst == MICRO_MOV_AL || micro_mov_dst == MICRO_MOV_AH)
                 begin
-                    alu_size    <= byte_word_field;
-                    // @todo: We probably need to add flag for updating flags
-                    // or not.
-                    alu_flags_r <= alu_flags;
+                    // Destination is byte register
+                    regfile_we   <= 1;
+                    reg_dst      <= {micro_mov_dst - MICRO_MOV_AL}[2:0];
+                    mov_dst_size <= 0;
+                end
 
-                    case(micro_alu_op)
-                        MICRO_ALU_OP_XI:
-                            alu_op <=
-                                 (opcode[7:4] == 4'b1000)?    {2'b0, regm}:
-                                ((opcode[7:2] == 6'b110100)?  ALUOP_ROL + {2'b0, regm}:
-                                ((opcode[7:1] == 7'b1100000)? ALUOP_ROL + {2'b0, regm}:
-                                ((opcode[7:1] == 7'b1111111)? ALUOP_INC + {2'b0, regm}:
-                                ((opcode[7:3] == 5'b01000)?   ALUOP_INC + {2'b0, opcode[5:3]}:
-                                                              {2'b0, opcode[5:3]}))));
+                if(micro_op_type[2:1] == 2'b01)
+                begin
+                    case(micro_op[9:5])
+                        MICRO_MOV_ONES:
+                            alu_b <= 1;
 
-                        MICRO_ALU_OP_AND:
-                            alu_op <= ALUOP_AND;
+                        MICRO_MOV_ZERO:
+                            alu_b <= 0;
 
-                        MICRO_ALU_OP_ADD:
-                            alu_op <= ALUOP_ADD;
+                        MICRO_MOV_R:
+                        begin
+                            if(byte_word_field == 1)
+                                alu_b <= registers[dst_operand[2:0]];
+                            else if(dst_operand[2] == 0)
+                                alu_b <= {8'd0, registers[{1'd0, dst_operand[1:0]}][7:0]};
+                            else
+                                alu_b <= {8'd0, registers[{1'd0, dst_operand[1:0]}][15:8]};
+                        end
 
-                        MICRO_ALU_OP_SUB:
-                            alu_op <= ALUOP_SUB;
+                        MICRO_MOV_AL,
+                        MICRO_MOV_AH:
+                            alu_b <= {8'd0, registers[{micro_op[9:5] - MICRO_MOV_AL}[2:0]][15:8]};
 
-                        MICRO_ALU_OP_INC:
-                            alu_op <= ALUOP_INC;
+                        MICRO_MOV_AW, MICRO_MOV_CW, MICRO_MOV_DW, MICRO_MOV_BW,
+                        MICRO_MOV_SP, MICRO_MOV_BP, MICRO_MOV_IX, MICRO_MOV_IY:
+                            alu_b <= registers[{micro_op[9:5] - MICRO_MOV_AW}[2:0]];
 
-                        MICRO_ALU_OP_DEC:
-                            alu_op <= ALUOP_DEC;
+                        MICRO_MOV_PC:
+                            alu_b <= PC;
 
-                        MICRO_ALU_OP_NEG:
-                            alu_op <= ALUOP_NEG;
+                        MICRO_MOV_DISP:
+                            alu_b <= disp_sign_extended;
 
-                        MICRO_ALU_OP_ROL:
-                            alu_op <= ALUOP_ROL;
-
-                        MICRO_ALU_OP_ROR:
-                            alu_op <= ALUOP_ROR;
+                        MICRO_MOV_IMM:
+                            alu_b <= imm;
 
                         default:
-                            alu_op <= 0;
-
+                            alu_b <= 16'hCAFE;
                     endcase
                 end
 
-                default:;
+                // ** Handle alu register writeback **
+                if(micro_op_type[2:1] == 2'b01 && micro_alu_use == MICRO_ALU_USE_RESULT)
+                begin
+                    if((micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R) && mod == 2'b11)
+                    begin
+                        // Destination is register specified by modrm.
+                        reg_dst      <= src_operand[2:0];
+                        mov_dst_size <= byte_word_field;
+                        regfile_we   <= 1;
+                    end
+                    else if(micro_mov_src >= MICRO_MOV_AW)
+                    begin
+                        mov_dst_size <= 1;
 
-            endcase
+                        if(micro_mov_src  == MICRO_MOV_PC)
+                        begin
+                            reg_dst <= 0;
+                        end
+                        else
+                        begin
+                            regfile_we <= 1;
+                            reg_dst    <= {micro_mov_src - MICRO_MOV_AW}[2:0];
+                        end
+                    end
+                    else if(micro_mov_src == MICRO_MOV_AL || micro_mov_src == MICRO_MOV_AH)
+                    begin
+                        // Destination is byte register
+                        regfile_we   <= 1;
+                        reg_dst      <= {micro_mov_src - MICRO_MOV_AL}[2:0];
+                        mov_dst_size <= 0;
+                    end
+                end
+
+                case(micro_op_type)
+                    // Bus operation
+                    3'b110:
+                    begin
+                        read_write_wait <= 1;
+
+                        if(micro_bus_op == MICRO_BUS_OP_IO_WRITE)
+                        begin
+                            bus_command <= BUS_COMMAND_IO_WRITE;
+                        end
+                        else if(micro_bus_op == MICRO_BUS_OP_IO_READ)
+                        begin
+                            bus_command <= BUS_COMMAND_IO_READ;
+                        end
+                        else if(micro_bus_op == MICRO_BUS_OP_MEM_WRITE)
+                        begin
+                            bus_command <= BUS_COMMAND_MEM_WRITE;
+                        end
+                        else
+                        begin
+                            bus_command <= BUS_COMMAND_MEM_READ;
+                        end
+                    end
+                    // alu operation
+                    3'b010, 3'b011:
+                    begin
+                        alu_size    <= byte_word_field;
+                        // @todo: We probably need to add flag for updating flags
+                        // or not.
+                        alu_flags_r <= alu_flags;
+
+                        case(micro_alu_op)
+                            MICRO_ALU_OP_XI:
+                                alu_op <=
+                                     (opcode[7:4] == 4'b1000)?    {2'b0, regm}:
+                                    ((opcode[7:2] == 6'b110100)?  ALUOP_ROL + {2'b0, regm}:
+                                    ((opcode[7:1] == 7'b1100000)? ALUOP_ROL + {2'b0, regm}:
+                                    ((opcode[7:1] == 7'b1111111)? ALUOP_INC + {2'b0, regm}:
+                                    ((opcode[7:3] == 5'b01000)?   ALUOP_INC + {2'b0, opcode[5:3]}:
+                                                                  {2'b0, opcode[5:3]}))));
+
+                            MICRO_ALU_OP_AND:
+                                alu_op <= ALUOP_AND;
+
+                            MICRO_ALU_OP_ADD:
+                                alu_op <= ALUOP_ADD;
+
+                            MICRO_ALU_OP_SUB:
+                                alu_op <= ALUOP_SUB;
+
+                            MICRO_ALU_OP_INC:
+                                alu_op <= ALUOP_INC;
+
+                            MICRO_ALU_OP_DEC:
+                                alu_op <= ALUOP_DEC;
+
+                            MICRO_ALU_OP_NEG:
+                                alu_op <= ALUOP_NEG;
+
+                            MICRO_ALU_OP_ROL:
+                                alu_op <= ALUOP_ROL;
+
+                            MICRO_ALU_OP_ROR:
+                                alu_op <= ALUOP_ROR;
+
+                            default:
+                                alu_op <= 0;
+
+                        endcase
+                    end
+
+                    default:;
+
+                endcase
+            end
         end
     end
 
@@ -888,7 +919,7 @@ module execution_unit
         if(reset)
         begin
             microprogram_counter <= 0;
-            microaddress         <= translation_rom[0];
+            microaddress         <= 0;
             PC                   <= 16'h0000;
             state                <= STATE_OPCODE_READ;
         end

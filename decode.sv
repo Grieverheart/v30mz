@@ -60,6 +60,8 @@ module decode
     wire [1:0] mod;
     wire [2:0] rm, regm;
 
+    reg instruction_not_decoded;
+
     assign mod  = modrm[7:6];
     assign regm = modrm[5:3];
     assign rm   = modrm[2:0];
@@ -134,6 +136,7 @@ module decode
     /* verilator lint_off COMBDLY  */
     always_comb
     begin
+        instruction_not_decoded = 0;
         casez(opcode)
             8'b0000_00??: // ADD R/M R
             begin
@@ -685,10 +688,23 @@ module decode
                 dst        <= {1'b0, rm};
             end
 
+            8'b1111_0011, // REP
+            8'b1111_1010, // DI
+            8'b1111_1100: // CLR1 DIR
+            begin
+                need_modrm <= 0;
+                need_disp  <= 0;
+                need_imm   <= 0;
+                imm_size   <= 0;
+                dst        <= 0;
+                src        <= 0;
+            end
+
             // @todo ...
 
             default:
             begin
+                instruction_not_decoded <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
