@@ -586,6 +586,8 @@ module execution_unit
     //assign queue_flush   = (micro_op_type == 3'b001) && (micro_misc_op_a == MICRO_MISC_OP_A_FLUSH);
     //assign queue_suspend = (micro_op_type == 3'b001) && (micro_misc_op_b == MICRO_MISC_OP_B_SUSP);
 
+    reg [1:0] opcode_step = 0;
+    reg [1:0] opcode_repeat = 0;
     always_latch
     begin
         error <= 0;
@@ -639,9 +641,25 @@ module execution_unit
                             regfile_we   <= 1;
                             reg_tmp      <= registers[7] + 2;
                         end
+
+                        if(opcode_repeat)
+                        begin
+                            alu_a    <= registers[1];
+                            alu_b    <= 1;
+                            alu_size <= 1;
+                            alu_op   <= ALUOP_DEC;
+
+                            regfile_we   <= 1;
+                            reg_dst      <= 1;
+                            mov_from     <= READ_SRC_ALU;
+                            mov_src_size <= 1;
+                            mov_dst_size <= 1;
+                        end
                     end
 
-                    8'hF3:;
+                    8'hF3:
+                    begin
+                    end
 
                     8'hFA:
                         control_flags[CTRL_FLAG_IE] <= 0;
@@ -1018,116 +1036,138 @@ module execution_unit
                 if(micro_mov_dst == MICRO_MOV_PC)
                     PC <= mov_data;
 
-
-                // Handle other commands
-                // @note: Not sure if I need to handle all these types of
-                // microcode instructions. Certain jumps were introduced in
-                // 8086 to reduce the microcode size, but this is not a huge
-                // problem here.
-                case(micro_op_type)
-
-                    // misc
-                    3'b001:
-                    begin
-                        if(micro_misc_op_a == MICRO_MISC_OP_A_FLUSH)
-                            queue_flush <= 1;
-
-                        if(micro_misc_op_b == MICRO_MISC_OP_B_SUSP)
-                            queue_suspend <= 1;
-                    end
-
-                    // alu
-                    3'b010, 3'b011:
-                    begin
-                    end
-
-                    // short jump
-                    3'b000, 3'b100:
-                    begin
-                    end
-
-                    // long jump
-                    3'b101:
-                    begin
-                        case(micro_jmp_condition)
-                            MICRO_JMP_XC:
+                if(translation_rom[opcode] == 0)
+                begin
+                    case(opcode)
+                        8'hF3:
+                        begin
+                            if(registers[1] == 0)
                             begin
-                                case(opcode[3:0])
-                                    4'h2: // BC
-                                    begin
-                                        if(alu_flags_r[ALU_FLAG_CY] == 1)
-                                        begin
-                                            microprogram_counter <= 0;
-                                            microaddress <= jump_table[micro_jmp_destination];
-                                            branch_taken <= 1;
-                                            state <= STATE_EXECUTE;
-                                        end
-                                    end
-
-                                    4'h3: // BNC
-                                    begin
-                                        if(alu_flags_r[ALU_FLAG_CY] == 0)
-                                        begin
-                                            microprogram_counter <= 0;
-                                            microaddress <= jump_table[micro_jmp_destination];
-                                            branch_taken <= 1;
-                                            state <= STATE_EXECUTE;
-                                        end
-                                    end
-
-                                    4'h4: // BZ
-                                    begin
-                                        if(alu_flags_r[ALU_FLAG_Z] == 1)
-                                        begin
-                                            microprogram_counter <= 0;
-                                            microaddress <= jump_table[micro_jmp_destination];
-                                            branch_taken <= 1;
-                                            state <= STATE_EXECUTE;
-                                        end
-                                    end
-
-                                    4'h5: // BNZ
-                                    begin
-                                        if(alu_flags_r[ALU_FLAG_Z] == 0)
-                                        begin
-                                            microprogram_counter <= 0;
-                                            microaddress <= jump_table[micro_jmp_destination];
-                                            branch_taken <= 1;
-                                            state <= STATE_EXECUTE;
-                                        end
-                                    end
-
-                                    default:
-                                    begin
-                                    end
-                                endcase
+                                PC <= PC + 2;
                             end
-
-                            MICRO_JMP_UC:
+                            else
                             begin
-                                microprogram_counter <= 0;
-                                microaddress <= jump_table[micro_jmp_destination];
-                                branch_taken <= 1;
-                                state <= STATE_EXECUTE;
+                                PC <= PC + 1;
+                                opcode_repeat <= 1;
                             end
+                        end
 
-                            default:
-                            begin
-                            end
-                        endcase
-                    end
+                        default;
+                    endcase
+                end
+                else
+                begin
 
-                    // bus operation
-                    3'b110:
-                    begin
-                    end
+                    // Handle microcode commands
+                    // @note: Not sure if I need to handle all these types of
+                    // microcode instructions. Certain jumps were introduced in
+                    // 8086 to reduce the microcode size, but this is not a huge
+                    // problem here.
+                    case(micro_op_type)
 
-                    // long call
-                    3'b111:
-                    begin
-                    end
+                        // misc
+                        3'b001:
+                        begin
+                            if(micro_misc_op_a == MICRO_MISC_OP_A_FLUSH)
+                                queue_flush <= 1;
 
-                endcase
+                            if(micro_misc_op_b == MICRO_MISC_OP_B_SUSP)
+                                queue_suspend <= 1;
+                        end
+
+                        // alu
+                        3'b010, 3'b011:
+                        begin
+                        end
+
+                        // short jump
+                        3'b000, 3'b100:
+                        begin
+                        end
+
+                        // long jump
+                        3'b101:
+                        begin
+                            case(micro_jmp_condition)
+                                MICRO_JMP_XC:
+                                begin
+                                    case(opcode[3:0])
+                                        4'h2: // BC
+                                        begin
+                                            if(alu_flags_r[ALU_FLAG_CY] == 1)
+                                            begin
+                                                microprogram_counter <= 0;
+                                                microaddress <= jump_table[micro_jmp_destination];
+                                                branch_taken <= 1;
+                                                state <= STATE_EXECUTE;
+                                            end
+                                        end
+
+                                        4'h3: // BNC
+                                        begin
+                                            if(alu_flags_r[ALU_FLAG_CY] == 0)
+                                            begin
+                                                microprogram_counter <= 0;
+                                                microaddress <= jump_table[micro_jmp_destination];
+                                                branch_taken <= 1;
+                                                state <= STATE_EXECUTE;
+                                            end
+                                        end
+
+                                        4'h4: // BZ
+                                        begin
+                                            if(alu_flags_r[ALU_FLAG_Z] == 1)
+                                            begin
+                                                microprogram_counter <= 0;
+                                                microaddress <= jump_table[micro_jmp_destination];
+                                                branch_taken <= 1;
+                                                state <= STATE_EXECUTE;
+                                            end
+                                        end
+
+                                        4'h5: // BNZ
+                                        begin
+                                            if(alu_flags_r[ALU_FLAG_Z] == 0)
+                                            begin
+                                                microprogram_counter <= 0;
+                                                microaddress <= jump_table[micro_jmp_destination];
+                                                branch_taken <= 1;
+                                                state <= STATE_EXECUTE;
+                                            end
+                                        end
+
+                                        default:
+                                        begin
+                                        end
+                                    endcase
+                                end
+
+                                MICRO_JMP_UC:
+                                begin
+                                    microprogram_counter <= 0;
+                                    microaddress <= jump_table[micro_jmp_destination];
+                                    branch_taken <= 1;
+                                    state <= STATE_EXECUTE;
+                                end
+
+                                default:
+                                begin
+                                end
+                            endcase
+                        end
+
+                        // bus operation
+                        3'b110:
+                        begin
+                        end
+
+                        // long call
+                        3'b111:
+                        begin
+                        end
+
+                    endcase
+                end
             end
         end
     end
