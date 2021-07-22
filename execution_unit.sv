@@ -586,8 +586,8 @@ module execution_unit
     //assign queue_flush   = (micro_op_type == 3'b001) && (micro_misc_op_a == MICRO_MISC_OP_A_FLUSH);
     //assign queue_suspend = (micro_op_type == 3'b001) && (micro_misc_op_b == MICRO_MISC_OP_B_SUSP);
 
-    reg [1:0] opcode_step = 0;
-    reg [1:0] opcode_repeat = 0;
+    reg [1:0] instruction_step = 0;
+    reg instruction_repeat = 0;
     always_latch
     begin
         error <= 0;
@@ -627,22 +627,23 @@ module execution_unit
 
                     8'hAB: // STMW
                     begin
-                        bus_command     <= BUS_COMMAND_MEM_WRITE;
-                        bus_address     <= physical_address; // @todo: Correct address
-                        data_out        <= registers[0];
-                        read_write_wait <= 1;
-
-                        if(bus_command_done)
+                        if(instruction_step == 0)
+                        begin
+                            bus_command     <= BUS_COMMAND_MEM_WRITE;
+                            bus_address     <= physical_address; // @todo: Correct address
+                            data_out        <= registers[0];
+                            read_write_wait <= 1;
+                        end
+                        else if(instruction_step == 1 && bus_command_done)
                         begin
                             reg_dst      <= 7;
                             mov_from     <= READ_SRC_TMP;
                             mov_src_size <= 1;
                             mov_dst_size <= 1;
                             regfile_we   <= 1;
-                            reg_tmp      <= registers[7] + 2;
+                            reg_tmp      <= (control_flags[CTRL_FLAG_DIR] == 0)? registers[7] + 2: registers[7] - 2;
                         end
-
-                        if(opcode_repeat)
+                        else if(instruction_step == 2 && instruction_repeat)
                         begin
                             alu_a    <= registers[1];
                             alu_b    <= 1;
@@ -660,12 +661,6 @@ module execution_unit
                     8'hF3:
                     begin
                     end
-
-                    8'hFA:
-                        control_flags[CTRL_FLAG_IE] <= 0;
-
-                    8'hFC:
-                        control_flags[CTRL_FLAG_DIR] <= 0;
 
                     default:
                         error <= `__LINE__;
@@ -1048,8 +1043,25 @@ module execution_unit
                             else
                             begin
                                 PC <= PC + 1;
-                                opcode_repeat <= 1;
+                                instruction_repeat <= 1;
                             end
+                        end
+
+                        8'hFA:
+                            control_flags[CTRL_FLAG_IE] <= 0;
+
+                        8'hFC:
+                            control_flags[CTRL_FLAG_DIR] <= 0;
+
+                        8'hAB:
+                        begin
+                            if(instruction_step != 1 || bus_command_done)
+                                instruction_step <= (instruction_step + 1) % 3;
+
+                            if(instruction_repeat && registers[1] != 0)
+                                state <= STATE_EXECUTE;
+                            else
+                                instruction_repeat <= 0;
                         end
 
                         default;
