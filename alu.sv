@@ -234,6 +234,18 @@ module alu
                 flags[ALU_FLAG_S] = R[msb];
             end
 
+            ALUOP_XOR:
+            begin
+                R = A ^ B;
+
+                flags[ALU_FLAG_CY] = 0;
+                flags[ALU_FLAG_V]  = 0;
+
+                flags[ALU_FLAG_P] = parity(R);
+                flags[ALU_FLAG_Z] = (R == 0);
+                flags[ALU_FLAG_S] = R[msb];
+            end
+
             ALUOP_ROL:
             begin
                 R = rol(size, A, B);

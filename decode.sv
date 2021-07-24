@@ -66,7 +66,11 @@ module decode
 
     wire need_disp_mod = (rm == 3'b110 && mod == 0) || ^mod;
     wire disp_size_mod = (rm == 3'b110 && mod == 0)? 1: mod[1];
-    assign disp_size = (opcode[7:1] == 7'b1110100 || opcode == 8'hEA) || (need_modrm && disp_size_mod);
+    assign disp_size = (
+        opcode[7:1] == 7'b1110100 ||
+        opcode[7:0] == 8'b10011010 ||
+        opcode == 8'hEA
+    ) || (need_modrm && disp_size_mod);
 
     assign byte_word_field =
         (opcode[7:4] != 4'b1011 && opcode[7:2] != 6'b100011)? opcode[0]: opcode[3];

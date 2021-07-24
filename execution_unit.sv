@@ -209,10 +209,10 @@ module execution_unit
         MICRO_MOV_DI    = 5'h05,
 
         MICRO_MOV_ALU_A = 5'h06,
-        MICRO_MOV_ALU_B = 5'h07,
-        MICRO_MOV_ALU_R = 5'h08,
-        MICRO_MOV_ZERO  = 5'h09,
-        MICRO_MOV_ONES  = 5'h10,
+        MICRO_MOV_ALU_R = 5'h07,
+        MICRO_MOV_ZERO  = 5'h08,
+        MICRO_MOV_ONES  = 5'h09,
+        MICRO_MOV_TWOS  = 5'h10,
 
         // all registers:
         MICRO_MOV_AL    = 5'h11,
@@ -367,11 +367,27 @@ module execution_unit
 
         rom[21] = {3'b101, MICRO_JMP_UC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
+        rom[22] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_R, MICRO_MOV_RM};
+        rom[23] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_RM, MICRO_MOV_R};
+
+        // CALL far-proc
+        rom[24] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB,  2'b00, MICRO_MOV_TWOS, MICRO_MOV_SP};
+        rom[25] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_ADD,  MICRO_MOV_SP};
+        rom[26] = {3'b110, 5'd0,                 MICRO_BUS_OP_MEM_WRITE, 2'b00, MICRO_MOV_DO,   MICRO_MOV_PS};
+        rom[27] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_PS,   MICRO_MOV_IMM};
+        rom[28] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB,  2'b00, MICRO_MOV_TWOS, MICRO_MOV_SP};
+        rom[29] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_ADD,  MICRO_MOV_SP};
+        rom[30] = {3'b110, 5'd0,                 MICRO_BUS_OP_MEM_WRITE, 2'b00, MICRO_MOV_DO,   MICRO_MOV_PC};
+        rom[31] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_PC,   MICRO_MOV_DISP};
+
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
 
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1000101, i[0]}] = 9'd1;          // MOV mem -> reg
+
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1000100, i[0]}] = 9'd2;          // MOV reg -> mem
 
         for (int j = 0; j < 8; j++)
             for (int i = 0; i < 2; i++)
@@ -411,8 +427,16 @@ module execution_unit
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1100_000, i[0]}] = 9'd18;        // ALU imm -> rm (Shift family)
 
+        for (int i = 0; i < 14; i++)
+            translation_rom[{2'b00, i[3:1], 2'b01, i[0]}] = 9'd22;        // XOR rm -> r
+
+        for (int i = 0; i < 14; i++)
+            translation_rom[{2'b00, i[3:1], 2'b00, i[0]}] = 9'd23;        // XOR r  -> rm
+
         translation_rom[8'b1110_1001] = 9'd20;                   // BR near-label
         translation_rom[8'b1110_1011] = 9'd20;                   // BR short-label
+
+        translation_rom[8'b1001_1010] = 9'd24;                   // CALL far-proc
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -751,6 +775,7 @@ module execution_unit
                     // Destination is memory
                     bus_address     <= physical_address;
                     bus_command     <= BUS_COMMAND_MEM_WRITE;
+                    data_out        <= mov_data;
                     read_write_wait <= 1;
                     mov_dst_size    <= byte_word_field;
                 end
@@ -811,6 +836,9 @@ module execution_unit
                 if(micro_op_type[2:1] == 2'b01)
                 begin
                     case(micro_op[9:5])
+                        MICRO_MOV_TWOS:
+                            alu_b <= 2;
+
                         MICRO_MOV_ONES:
                             alu_b <= 1;
 
