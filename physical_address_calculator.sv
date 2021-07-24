@@ -2,6 +2,7 @@ module physical_address_calculator
 (
     input [15:0] registers[0:7],
     input [15:0] segment_registers[0:3],
+    input [2:0] segment_override, // High bit = enable/disable override.
 
     input [15:0] displacement,
     input [2:0] rm,
@@ -71,7 +72,7 @@ module physical_address_calculator
 
     wire [15:0] base_reg  = registers[base[2:0]];
     wire [15:0] index_reg = registers[index[2:0]];
-    wire [15:0] seg_reg   = segment_registers[seg];
+    wire [15:0] seg_reg   = segment_override[2]? segment_registers[segment_override[1:0]]: segment_registers[seg];
 
     assign physical_address =
         {seg_reg, 4'd0} +

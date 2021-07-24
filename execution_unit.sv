@@ -512,11 +512,13 @@ module execution_unit
 
     wire [19:0] physical_address;
     wire [15:0] disp_sign_extended = (disp_size == 1)? disp: {{8{disp[7]}}, disp[7:0]}; // Sign extend
+    reg [2:0] segment_override = 0; // High bit = enable/disable override.
     physical_address_calculator pac
     (
         .physical_address(physical_address),
         .registers,
         .segment_registers,
+        .segment_override(segment_override),
         .displacement(disp_sign_extended),
         .mod(mod),
         .rm(rm)
@@ -661,6 +663,11 @@ module execution_unit
                     8'hFA,
                     8'hFC,
                     8'hF3:
+                    begin
+                    end
+
+                    // Segment override prefix.
+                    8'h26, 8'h2E, 8'h36, 8'h3E:
                     begin
                     end
 
@@ -1033,6 +1040,8 @@ module execution_unit
                 if(micro_mov_dst == MICRO_MOV_PC)
                     PC <= mov_data;
 
+                segment_override <= 0;
+
                 if(translation_rom[opcode] == 0)
                 begin
                     case(opcode)
@@ -1066,6 +1075,12 @@ module execution_unit
                                 state <= STATE_EXECUTE;
                             else
                                 instruction_repeat <= 0;
+                        end
+
+                        // Segment override prefix.
+                        8'h26, 8'h2E, 8'h36, 8'h3E:
+                        begin
+                            segment_override <= {1'b1, opcode[4:3]};
                         end
 
                         default;

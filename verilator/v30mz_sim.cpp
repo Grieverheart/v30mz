@@ -83,6 +83,9 @@ int main(int argc, char** argv, char** env)
             data_sent = false;
         }
 
+        //v30mz->eval();
+        //tfp->dump(timestamp++);
+
         if(v30mz->bus_status == 0x9)
         {
             if(v30mz->address_out >= 0x10000)
@@ -90,7 +93,7 @@ int main(int argc, char** argv, char** env)
             else
                 v30mz->data_in = *(uint16_t*)(memory + (v30mz->address_out & 0x003FFF));
 
-            v30mz->readyb  = 0;
+            v30mz->readyb = 0;
             data_sent = true;
         }
         else if(v30mz->bus_status == 0xA)
@@ -104,7 +107,7 @@ int main(int argc, char** argv, char** env)
             v30mz->readyb  = 0;
             data_sent = true;
         }
-        else if(v30mz->bus_status != 0x0)
+        else if(v30mz->bus_status != 0x0 && v30mz->bus_status != 0xF)
         {
             if(v30mz->bus_status == 0x5) v30mz->data_in = (v30mz->address_out == 0xa0)? 0x84: 0;
             v30mz->readyb  = 0;

@@ -8,7 +8,7 @@ Currently stuck at DS1: instruction 0x26 of bootrom.
 
 # TODO
 
-* Implement segment override prefix instructions. The segment override is active for the next instruction.
+* Memory read request don't always work properly. See e.g. instruction 0x8A at 0x67. Investigate.
 * Implement more block manipulation instructions.
 * Set alu flags in PSW?
 * Handle 's' sign extension specification opcode bit in 'ALU r/m, imm' alu instructions. Note: imm8 is sign-extended to 16-bit. Also not sure if the 'W' bit is 1 or 0 in this case, but it could be tricky handling the sizing correctly.
