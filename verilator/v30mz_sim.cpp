@@ -16,6 +16,8 @@ int main(int argc, char** argv, char** env)
     fread(instructions, 1, file_size, fp);
     fclose(fp);
 
+    uint8_t* memory = (uint8_t*) malloc(16*1024);
+
     Verilated::commandArgs(argc, argv);
 
     Vv30mz* v30mz = new Vv30mz;
@@ -80,9 +82,24 @@ int main(int argc, char** argv, char** env)
             v30mz->readyb = 1;
             data_sent = false;
         }
+
         if(v30mz->bus_status == 0x9)
         {
-            v30mz->data_in = *(uint16_t*)(instructions + (v30mz->address_out & (file_size - 1)));
+            if(v30mz->address_out >= 0x10000)
+                v30mz->data_in = *(uint16_t*)(instructions + (v30mz->address_out & (file_size - 1)));
+            else
+                v30mz->data_in = *(uint16_t*)(memory + (v30mz->address_out & 0x003FFF));
+
+            v30mz->readyb  = 0;
+            data_sent = true;
+        }
+        else if(v30mz->bus_status == 0xA)
+        {
+            if(v30mz->address_out < 0x00FFFF)
+            {
+                uint32_t address = v30mz->address_out & 0x003FFF;
+                *(uint16_t*)(memory + address) = v30mz->data_out;
+            }
 
             v30mz->readyb  = 0;
             data_sent = true;

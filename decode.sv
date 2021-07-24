@@ -48,12 +48,7 @@ module decode
     output reg [3:0] dst,
 
     // W
-    output byte_word_field,
-
-    // Effective address registers
-    output [3:0] base,
-    output [3:0] index,
-    output [1:0] seg
+    output byte_word_field
 );
 
     wire [2:0] dstm, srcm;
@@ -75,63 +70,6 @@ module decode
 
     assign byte_word_field =
         (opcode[7:4] != 4'b1011 && opcode[7:2] != 6'b100011)? opcode[0]: opcode[3];
-
-    // Assign the base, index and segment registers.
-    // @note: The high bit of the base and index registers is set when the
-    // register is not used in the effective address calculation.
-    always_comb
-    begin
-        case (rm)
-            3'b000:
-            begin
-                base  = 4'b0011;
-                index = 4'b0110;
-                seg   = 2'b11;
-            end
-            3'b001:
-            begin
-                base  = 4'b0011;
-                index = 4'b0111;
-                seg   = 2'b11;
-            end
-            3'b010:
-            begin
-                base  = 4'b0101;
-                index = 4'b0110;
-                seg   = 2'b10;
-            end
-            3'b011:
-            begin
-                base  = 4'b0101;
-                index = 4'b0111;
-                seg   = 2'b10;
-            end
-            3'b100:
-            begin
-                base  = 4'b1100;
-                index = 4'b0110;
-                seg   = 2'b11;
-            end
-            3'b101:
-            begin
-                base  = 4'b1100;
-                index = 4'b0111;
-                seg   = 2'b11;
-            end
-            3'b110:
-            begin
-                base  = (mod != 0) ? 4'b0101 : 4'b1100;
-                index = 4'b1100;
-                seg   = (mod != 0) ? 2'b10 : 2'b11;
-            end
-            3'b111:
-            begin
-                base  = 4'b0011;
-                index = 4'b1100;
-                seg   = 2'b11;
-            end
-        endcase
-    end
 
     /* verilator lint_off COMBDLY  */
     always_comb
@@ -538,7 +476,7 @@ module decode
                 src        <= 0;
             end
 
-            8'b1010_101?: // STOS
+            8'b1010_101?: // STM(B/W)
             begin
                 need_modrm <= 0;
                 need_disp  <= 0;

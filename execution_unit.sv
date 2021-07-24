@@ -132,11 +132,7 @@ module execution_unit
         .src(src_operand),
         .dst(dst_operand),
 
-        .byte_word_field(byte_word_field),
-
-        .base(ea_base_reg),
-        .index(ea_index_reg),
-        .seg(ea_segment_reg)
+        .byte_word_field(byte_word_field)
     );
 
 
@@ -519,11 +515,11 @@ module execution_unit
     physical_address_calculator pac
     (
         .physical_address(physical_address),
-        .factors({ea_base_reg[3], ea_index_reg[3], &mod}),
-        .segment(segment_registers[ea_segment_reg]),
-        .base(registers[ea_base_reg[2:0]]),
-        .index(registers[ea_index_reg[2:0]]),
-        .displacement(disp_sign_extended)
+        .registers,
+        .segment_registers,
+        .displacement(disp_sign_extended),
+        .mod(mod),
+        .rm(rm)
     );
 
     reg [15:0] alu_a, alu_b;
@@ -627,10 +623,12 @@ module execution_unit
 
                     8'hAB: // STMW
                     begin
+                        modrm = 8'b00000101;
+
                         if(instruction_step == 0)
                         begin
                             bus_command     <= BUS_COMMAND_MEM_WRITE;
-                            bus_address     <= physical_address; // @todo: Correct address
+                            bus_address     <= physical_address;
                             data_out        <= registers[0];
                             read_write_wait <= 1;
                         end
@@ -645,6 +643,8 @@ module execution_unit
                         end
                         else if(instruction_step == 2 && instruction_repeat)
                         begin
+                            // @todo: Do I need to do something with the Z-flag?
+
                             alu_a    <= registers[1];
                             alu_b    <= 1;
                             alu_size <= 1;
@@ -658,6 +658,8 @@ module execution_unit
                         end
                     end
 
+                    8'hFA,
+                    8'hFC,
                     8'hF3:
                     begin
                     end
@@ -1058,7 +1060,9 @@ module execution_unit
                             if(instruction_step != 1 || bus_command_done)
                                 instruction_step <= (instruction_step + 1) % 3;
 
-                            if(instruction_repeat && registers[1] != 0)
+                            // @todo: Check that we stop on time, or not
+                            // a clock too late.
+                            if(instruction_repeat && registers[1] != 1)
                                 state <= STATE_EXECUTE;
                             else
                                 instruction_repeat <= 0;

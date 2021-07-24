@@ -1,0 +1,1933 @@
+                           .data:00000000 fa                               cli    
+                           .data:00000001 b8 00 00                         mov    $0x0,%ax
+                           .data:00000004 8b d0                            mov    %ax,%dx
+                           .data:00000006 8b e8                            mov    %ax,%bp
+                           .data:00000008 8e d0                            mov    %ax,%ss
+                           .data:0000000a bc 00 20                         mov    $0x2000,%sp
+                           .data:0000000d 8e d8                            mov    %ax,%ds
+                           .data:0000000f 8e c0                            mov    %ax,%es
+                           .data:00000011 e6 b5                            out    %al,$0xb5
+                           .data:00000013 b0 04                            mov    $0x4,%al
+                           .data:00000015 e6 a0                            out    %al,$0xa0
+                           .data:00000017 e4 b5                            in     $0xb5,%al
+                           .data:00000019 8a d8                            mov    %al,%bl
+                           .data:0000001b d0 eb                            shr    %bl
+                           .data:0000001d 73 05                            jae    0x00000024
+                           .data:0000001f ea 00 00 00 40                   ljmp   $0x4000,$0x0
+                           .data:00000024 b9 00 00                         mov    $0x0,%cx
+                           .data:00000027 e4 a0                            in     $0xa0,%al
+                           .data:00000029 24 80                            and    $0x80,%al
+                           .data:0000002b 75 0c                            jne    0x00000039
+                           .data:0000002d 41                               inc    %cx
+                           .data:0000002e 81 f9 80 00                      cmp    $0x80,%cx
+                           .data:00000032 75 03                            jne    0x00000037
+                           .data:00000034 e9 06 02                         jmp    0x0000023d
+                           .data:00000037 eb ee                            jmp    0x00000027
+                           .data:00000039 e4 b5                            in     $0xb5,%al
+                           .data:0000003b 24 02                            and    $0x2,%al
+                           .data:0000003d 74 05                            je     0x00000044
+                           .data:0000003f ea 10 00 00 40                   ljmp   $0x4000,$0x10
+                           .data:00000044 b0 08                            mov    $0x8,%al
+                           .data:00000046 e6 a0                            out    %al,$0xa0
+                           .data:00000048 b8 30 01                         mov    $0x130,%ax
+                           .data:0000004b e7 bc                            out    %ax,$0xbc
+                           .data:0000004d b0 40                            mov    $0x40,%al
+                           .data:0000004f e6 be                            out    %al,$0xbe
+                           .data:00000051 bf 00 00                         mov    $0x0,%di
+                           .data:00000054 b9 00 20                         mov    $0x2000,%cx
+                           .data:00000057 b8 00 00                         mov    $0x0,%ax
+                           .data:0000005a fc                               cld    
+                           .data:0000005b f3 ab                            rep stos %ax,%es:(%di)
+                           .data:0000005d b8 f0 3f                         mov    $0x3ff0,%ax
+                           .data:00000060 8e c0                            mov    %ax,%es
+                           .data:00000062 bb fc 00                         mov    $0xfc,%bx
+                           .data:00000065 26 8a 07                         mov    %es:(%bx),%al
+                           .data:00000068 be 02 07                         mov    $0x702,%si
+                           .data:0000006b 88 04                            mov    %al,(%si)
+                           .data:0000006d 24 0c                            and    $0xc,%al
+                           .data:0000006f e6 a0                            out    %al,$0xa0
+                           .data:00000071 b0 9e                            mov    $0x9e,%al
+                           .data:00000073 e6 16                            out    %al,$0x16
+                           .data:00000075 b0 9b                            mov    $0x9b,%al
+                           .data:00000077 e6 17                            out    %al,$0x17
+                           .data:00000079 33 c0                            xor    %ax,%ax
+                           .data:0000007b e6 10                            out    %al,$0x10
+                           .data:0000007d e6 11                            out    %al,$0x11
+                           .data:0000007f e6 88                            out    %al,$0x88
+                           .data:00000081 e6 89                            out    %al,$0x89
+                           .data:00000083 e6 8a                            out    %al,$0x8a
+                           .data:00000085 e6 8b                            out    %al,$0x8b
+                           .data:00000087 e6 05                            out    %al,$0x5
+                           .data:00000089 e6 06                            out    %al,$0x6
+                           .data:0000008b e6 90                            out    %al,$0x90
+                           .data:0000008d e6 91                            out    %al,$0x91
+                           .data:0000008f b0 0c                            mov    $0xc,%al
+                           .data:00000091 e6 04                            out    %al,$0x4
+                           .data:00000093 b8 20 64                         mov    $0x6420,%ax
+                           .data:00000096 e7 1c                            out    %ax,$0x1c
+                           .data:00000098 b8 a8 fc                         mov    $0xfca8,%ax
+                           .data:0000009b e7 1e                            out    %ax,$0x1e
+                           .data:0000009d b0 01                            mov    $0x1,%al
+                           .data:0000009f e6 07                            out    %al,$0x7
+                           .data:000000a1 e6 14                            out    %al,$0x14
+                           .data:000000a3 b8 30 75                         mov    $0x7530,%ax
+                           .data:000000a6 e7 30                            out    %ax,$0x30
+                           .data:000000a8 be 00 06                         mov    $0x600,%si
+                           .data:000000ab bb 30 00                         mov    $0x30,%bx
+                           .data:000000ae b9 10 00                         mov    $0x10,%cx
+                           .data:000000b1 9a 47 08 00 ff                   lcall  $0xff00,$0x847
+                           .data:000000b6 3d 00 00                         cmp    $0x0,%ax
+                           .data:000000b9 74 03                            je     0x000000be
+                           .data:000000bb e9 7f 01                         jmp    0x0000023d
+                           .data:000000be 89 14                            mov    %dx,(%si)
+                           .data:000000c0 83 c6 02                         add    $0x2,%si
+                           .data:000000c3 43                               inc    %bx
+                           .data:000000c4 e2 eb                            loop   0x000000b1
+                           .data:000000c6 be 00 06                         mov    $0x600,%si
+                           .data:000000c9 b9 10 00                         mov    $0x10,%cx
+                           .data:000000cc 80 3c 2b                         cmpb   $0x2b,(%si)
+                           .data:000000cf 72 03                            jb     0x000000d4
+                           .data:000000d1 c6 04 00                         movb   $0x0,(%si)
+                           .data:000000d4 46                               inc    %si
+                           .data:000000d5 e2 f5                            loop   0x000000cc
+                           .data:000000d7 b2 99                            mov    $0x99,%dl
+                           .data:000000d9 9a 32 0a 00 ff                   lcall  $0xff00,$0xa32
+                           .data:000000de b2 99                            mov    $0x99,%dl
+                           .data:000000e0 9a 32 0a 00 ff                   lcall  $0xff00,$0xa32
+                           .data:000000e5 b2 12                            mov    $0x12,%dl
+                           .data:000000e7 9a 32 0a 00 ff                   lcall  $0xff00,$0xa32
+                           .data:000000ec b2 31                            mov    $0x31,%dl
+                           .data:000000ee 9a 32 0a 00 ff                   lcall  $0xff00,$0xa32
+                           .data:000000f3 80 3c 02                         cmpb   $0x2,(%si)
+                           .data:000000f6 76 03                            jbe    0x000000fb
+                           .data:000000f8 c6 04 00                         movb   $0x0,(%si)
+                           .data:000000fb 46                               inc    %si
+                           .data:000000fc 80 3c 04                         cmpb   $0x4,(%si)
+                           .data:000000ff 76 03                            jbe    0x00000104
+                           .data:00000101 c6 04 00                         movb   $0x0,(%si)
+                           .data:00000104 b8 b0 ff                         mov    $0xffb0,%ax
+                           .data:00000107 8e c0                            mov    %ax,%es
+                           .data:00000109 bb bd 02                         mov    $0x2bd,%bx
+                           .data:0000010c be 00 20                         mov    $0x2000,%si
+                           .data:0000010f b9 e8 01                         mov    $0x1e8,%cx
+                           .data:00000112 26 8a 07                         mov    %es:(%bx),%al
+                           .data:00000115 88 04                            mov    %al,(%si)
+                           .data:00000117 88 44 01                         mov    %al,0x1(%si)
+                           .data:0000011a 83 c6 02                         add    $0x2,%si
+                           .data:0000011d 43                               inc    %bx
+                           .data:0000011e e2 f2                            loop   0x00000112
+                           .data:00000120 b9 3d 00                         mov    $0x3d,%cx
+                           .data:00000123 bb bd 02                         mov    $0x2bd,%bx
+                           .data:00000126 9a 0e 09 00 ff                   lcall  $0xff00,$0x90e
+                           .data:0000012b bb 98 00                         mov    $0x98,%bx
+                           .data:0000012e c7 07 48 0a                      movw   $0xa48,(%bx)
+                           .data:00000132 c7 47 02 00 ff                   movw   $0xff00,0x2(%bx)
+                           .data:00000137 b0 20                            mov    $0x20,%al
+                           .data:00000139 e6 b0                            out    %al,$0xb0
+                           .data:0000013b b0 40                            mov    $0x40,%al
+                           .data:0000013d e6 b6                            out    %al,$0xb6
+                           .data:0000013f e6 b2                            out    %al,$0xb2
+                           .data:00000141 b0 40                            mov    $0x40,%al
+                           .data:00000143 e6 b5                            out    %al,$0xb5
+                           .data:00000145 b9 0f 00                         mov    $0xf,%cx
+                           .data:00000148 e2 fe                            loop   0x00000148
+                           .data:0000014a e4 b5                            in     $0xb5,%al
+                           .data:0000014c a8 02                            test   $0x2,%al
+                           .data:0000014e 74 0c                            je     0x0000015c
+                           .data:00000150 be 16 07                         mov    $0x716,%si
+                           .data:00000153 c6 04 01                         movb   $0x1,(%si)
+                           .data:00000156 9a 3f 02 00 ff                   lcall  $0xff00,$0x23f
+                           .data:0000015b fa                               cli    
+                           .data:0000015c bb 02 07                         mov    $0x702,%bx
+                           .data:0000015f 8a 07                            mov    (%bx),%al
+                           .data:00000161 24 01                            and    $0x1,%al
+                           .data:00000163 bb 14 07                         mov    $0x714,%bx
+                           .data:00000166 88 07                            mov    %al,(%bx)
+                           .data:00000168 3c 01                            cmp    $0x1,%al
+                           .data:0000016a 75 06                            jne    0x00000172
+                           .data:0000016c b0 02                            mov    $0x2,%al
+                           .data:0000016e e6 15                            out    %al,$0x15
+                           .data:00000170 eb 04                            jmp    0x00000176
+                           .data:00000172 b0 04                            mov    $0x4,%al
+                           .data:00000174 e6 15                            out    %al,$0x15
+                           .data:00000176 9a a6 08 00 ff                   lcall  $0xff00,$0x8a6
+                           .data:0000017b 9a a5 07 00 ff                   lcall  $0xff00,$0x7a5
+                           .data:00000180 be 16 07                         mov    $0x716,%si
+                           .data:00000183 c6 04 02                         movb   $0x2,(%si)
+                           .data:00000186 fb                               sti    
+                           .data:00000187 f4                               hlt    
+                           .data:00000188 be 18 07                         mov    $0x718,%si
+                           .data:0000018b 80 3c 00                         cmpb   $0x0,(%si)
+                           .data:0000018e 74 f7                            je     0x00000187
+                           .data:00000190 fa                               cli    
+                           .data:00000191 33 c0                            xor    %ax,%ax
+                           .data:00000193 e6 b2                            out    %al,$0xb2
+                           .data:00000195 b0 ff                            mov    $0xff,%al
+                           .data:00000197 e6 b6                            out    %al,$0xb6
+                           .data:00000199 be 00 06                         mov    $0x600,%si
+                           .data:0000019c 83 7c 1e ff                      cmpw   $0xffff,0x1e(%si)
+                           .data:000001a0 74 03                            je     0x000001a5
+                           .data:000001a2 ff 44 1e                         incw   0x1e(%si)
+                           .data:000001a5 b8 f0 3f                         mov    $0x3ff0,%ax
+                           .data:000001a8 8e c0                            mov    %ax,%es
+                           .data:000001aa bb f6 00                         mov    $0xf6,%bx
+                           .data:000001ad 26 8b 07                         mov    %es:(%bx),%ax
+                           .data:000001b0 26 8a 57 02                      mov    %es:0x2(%bx),%dl
+                           .data:000001b4 3b 44 16                         cmp    0x16(%si),%ax
+                           .data:000001b7 75 05                            jne    0x000001be
+                           .data:000001b9 3a 54 18                         cmp    0x18(%si),%dl
+                           .data:000001bc 74 0f                            je     0x000001cd
+                           .data:000001be 89 44 16                         mov    %ax,0x16(%si)
+                           .data:000001c1 88 54 18                         mov    %dl,0x18(%si)
+                           .data:000001c4 80 7c 1c ff                      cmpb   $0xff,0x1c(%si)
+                           .data:000001c8 74 03                            je     0x000001cd
+                           .data:000001ca fe 44 1c                         incb   0x1c(%si)
+                           .data:000001cd bb 30 00                         mov    $0x30,%bx
+                           .data:000001d0 b9 10 00                         mov    $0x10,%cx
+                           .data:000001d3 8b 14                            mov    (%si),%dx
+                           .data:000001d5 9a 74 08 00 ff                   lcall  $0xff00,$0x874
+                           .data:000001da 3d 00 00                         cmp    $0x0,%ax
+                           .data:000001dd 74 03                            je     0x000001e2
+                           .data:000001df e9 5b 00                         jmp    0x0000023d
+                           .data:000001e2 83 c6 02                         add    $0x2,%si
+                           .data:000001e5 43                               inc    %bx
+                           .data:000001e6 e2 eb                            loop   0x000001d3
+                           .data:000001e8 be f9 00                         mov    $0xf9,%si
+                           .data:000001eb 26 8a 04                         mov    %es:(%si),%al
+                           .data:000001ee 24 80                            and    $0x80,%al
+                           .data:000001f0 75 04                            jne    0x000001f6
+                           .data:000001f2 b0 80                            mov    $0x80,%al
+                           .data:000001f4 e6 be                            out    %al,$0xbe
+                           .data:000001f6 33 c0                            xor    %ax,%ax
+                           .data:000001f8 e7 00                            out    %ax,$0x0
+                           .data:000001fa e6 07                            out    %al,$0x7
+                           .data:000001fc e6 04                            out    %al,$0x4
+                           .data:000001fe e6 05                            out    %al,$0x5
+                           .data:00000200 e6 06                            out    %al,$0x6
+                           .data:00000202 e6 b0                            out    %al,$0xb0
+                           .data:00000204 e6 90                            out    %al,$0x90
+                           .data:00000206 e6 91                            out    %al,$0x91
+                           .data:00000208 e6 8f                            out    %al,$0x8f
+                           .data:0000020a b8 00 00                         mov    $0x0,%ax
+                           .data:0000020d 8e c0                            mov    %ax,%es
+                           .data:0000020f bf 00 00                         mov    $0x0,%di
+                           .data:00000212 b9 00 20                         mov    $0x2000,%cx
+                           .data:00000215 b8 00 00                         mov    $0x0,%ax
+                           .data:00000218 fc                               cld    
+                           .data:00000219 f3 ab                            rep stos %ax,%es:(%di)
+                           .data:0000021b b9 0d 00                         mov    $0xd,%cx
+                           .data:0000021e b8 00 ff                         mov    $0xff00,%ax
+                           .data:00000221 8e d8                            mov    %ax,%ds
+                           .data:00000223 be 30 02                         mov    $0x230,%si
+                           .data:00000226 bf 00 04                         mov    $0x400,%di
+                           .data:00000229 f3 a4                            rep movsb %ds:(%si),%es:(%di)
+                           .data:0000022b ea 00 04 00 00                   ljmp   $0x0,$0x400
+                           .data:00000230 e4 a0                            in     $0xa0,%al
+                           .data:00000232 24 8c                            and    $0x8c,%al
+                           .data:00000234 0c 01                            or     $0x1,%al
+                           .data:00000236 e6 a0                            out    %al,$0xa0
+                           .data:00000238 ea 00 00 ff ff                   ljmp   $0xffff,$0x0
+                           .data:0000023d f4                               hlt    
+                           .data:0000023e f4                               hlt    
+                           .data:0000023f fa                               cli    
+                           .data:00000240 fc                               cld    
+                           .data:00000241 33 c0                            xor    %ax,%ax
+                           .data:00000243 8e c0                            mov    %ax,%es
+                           .data:00000245 bb 16 07                         mov    $0x716,%bx
+                           .data:00000248 c6 07 01                         movb   $0x1,(%bx)
+                           .data:0000024b b9 00 04                         mov    $0x400,%cx
+                           .data:0000024e bf 00 08                         mov    $0x800,%di
+                           .data:00000251 f3 ab                            rep stos %ax,%es:(%di)
+                           .data:00000253 b9 0b 00                         mov    $0xb,%cx
+                           .data:00000256 bf 40 06                         mov    $0x640,%di
+                           .data:00000259 be 00 06                         mov    $0x600,%si
+                           .data:0000025c f3 a5                            rep movsw %ds:(%si),%es:(%di)
+                           .data:0000025e b8 30 75                         mov    $0x7530,%ax
+                           .data:00000261 e7 22                            out    %ax,$0x22
+                           .data:00000263 b8 00 50                         mov    $0x5000,%ax
+                           .data:00000266 e7 20                            out    %ax,$0x20
+                           .data:00000268 b0 07                            mov    $0x7,%al
+                           .data:0000026a e6 06                            out    %al,$0x6
+                           .data:0000026c b8 b0 ff                         mov    $0xffb0,%ax
+                           .data:0000026f 8e c0                            mov    %ax,%es
+                           .data:00000271 bb 2a 06                         mov    $0x62a,%bx
+                           .data:00000274 c6 07 00                         movb   $0x0,(%bx)
+                           .data:00000277 e8 6c 01                         call   0x000003e6
+                           .data:0000027a e8 cb 00                         call   0x00000348
+                           .data:0000027d b0 05                            mov    $0x5,%al
+                           .data:0000027f e7 00                            out    %ax,$0x0
+                           .data:00000281 b0 04                            mov    $0x4,%al
+                           .data:00000283 bb 2b 06                         mov    $0x62b,%bx
+                           .data:00000286 e6 15                            out    %al,$0x15
+                           .data:00000288 c6 07 7a                         movb   $0x7a,(%bx)
+                           .data:0000028b b0 01                            mov    $0x1,%al
+                           .data:0000028d e6 14                            out    %al,$0x14
+                           .data:0000028f fb                               sti    
+                           .data:00000290 f4                               hlt    
+                           .data:00000291 bb 23 06                         mov    $0x623,%bx
+                           .data:00000294 8a 07                            mov    (%bx),%al
+                           .data:00000296 0a c0                            or     %al,%al
+                           .data:00000298 74 f6                            je     0x00000290
+                           .data:0000029a e8 06 02                         call   0x000004a3
+                           .data:0000029d bb 20 06                         mov    $0x620,%bx
+                           .data:000002a0 9a e2 02 00 ff                   lcall  $0xff00,$0x2e2
+                           .data:000002a5 e8 cb 04                         call   0x00000773
+                           .data:000002a8 e8 5e 01                         call   0x00000409
+                           .data:000002ab bb 2b 06                         mov    $0x62b,%bx
+                           .data:000002ae fe 0f                            decb   (%bx)
+                           .data:000002b0 75 04                            jne    0x000002b6
+                           .data:000002b2 b0 00                            mov    $0x0,%al
+                           .data:000002b4 e6 15                            out    %al,$0x15
+                           .data:000002b6 bb 2a 06                         mov    $0x62a,%bx
+                           .data:000002b9 f6 07 01                         testb  $0x1,(%bx)
+                           .data:000002bc 75 08                            jne    0x000002c6
+                           .data:000002be bb 23 06                         mov    $0x623,%bx
+                           .data:000002c1 c6 07 00                         movb   $0x0,(%bx)
+                           .data:000002c4 eb ca                            jmp    0x00000290
+                           .data:000002c6 e8 72 04                         call   0x0000073b
+                           .data:000002c9 06                               push   %es
+                           .data:000002ca 33 c0                            xor    %ax,%ax
+                           .data:000002cc e6 05                            out    %al,$0x5
+                           .data:000002ce bb 18 18                         mov    $0x1818,%bx
+                           .data:000002d1 89 07                            mov    %ax,(%bx)
+                           .data:000002d3 8e c0                            mov    %ax,%es
+                           .data:000002d5 b9 00 04                         mov    $0x400,%cx
+                           .data:000002d8 bf 00 08                         mov    $0x800,%di
+                           .data:000002db f3 ab                            rep stos %ax,%es:(%di)
+                           .data:000002dd 07                               pop    %es
+                           .data:000002de e6 15                            out    %al,$0x15
+                           .data:000002e0 fa                               cli    
+                           .data:000002e1 cb                               lret   
+                           .data:000002e2 b0 20                            mov    $0x20,%al
+                           .data:000002e4 e6 b5                            out    %al,$0xb5
+                           .data:000002e6 b9 0f 00                         mov    $0xf,%cx
+                           .data:000002e9 e2 fe                            loop   0x000002e9
+                           .data:000002eb e4 b5                            in     $0xb5,%al
+                           .data:000002ed 24 0f                            and    $0xf,%al
+                           .data:000002ef 8a e0                            mov    %al,%ah
+                           .data:000002f1 b0 40                            mov    $0x40,%al
+                           .data:000002f3 e6 b5                            out    %al,$0xb5
+                           .data:000002f5 b9 0f 00                         mov    $0xf,%cx
+                           .data:000002f8 e2 fe                            loop   0x000002f8
+                           .data:000002fa e4 b5                            in     $0xb5,%al
+                           .data:000002fc 24 0f                            and    $0xf,%al
+                           .data:000002fe b1 04                            mov    $0x4,%cl
+                           .data:00000300 d2 e0                            shl    %cl,%al
+                           .data:00000302 0a c4                            or     %ah,%al
+                           .data:00000304 8a e0                            mov    %al,%ah
+                           .data:00000306 8a 07                            mov    (%bx),%al
+                           .data:00000308 32 c4                            xor    %ah,%al
+                           .data:0000030a 22 c4                            and    %ah,%al
+                           .data:0000030c 88 47 01                         mov    %al,0x1(%bx)
+                           .data:0000030f 8a 07                            mov    (%bx),%al
+                           .data:00000311 88 47 02                         mov    %al,0x2(%bx)
+                           .data:00000314 88 27                            mov    %ah,(%bx)
+                           .data:00000316 cb                               lret   
+                           .data:00000317 0a c0                            or     %al,%al
+                           .data:00000319 74 10                            je     0x0000032b
+                           .data:0000031b 3c 0a                            cmp    $0xa,%al
+                           .data:0000031d 77 03                            ja     0x00000322
+                           .data:0000031f 04 1b                            add    $0x1b,%al
+                           .data:00000321 c3                               ret    
+                           .data:00000322 3c 24                            cmp    $0x24,%al
+                           .data:00000324 77 03                            ja     0x00000329
+                           .data:00000326 2c 0a                            sub    $0xa,%al
+                           .data:00000328 c3                               ret    
+                           .data:00000329 04 02                            add    $0x2,%al
+                           .data:0000032b c3                               ret    
+                           .data:0000032c 0a c0                            or     %al,%al
+                           .data:0000032e 74 17                            je     0x00000347
+                           .data:00000330 3c 1b                            cmp    $0x1b,%al
+                           .data:00000332 74 05                            je     0x00000339
+                           .data:00000334 77 06                            ja     0x0000033c
+                           .data:00000336 04 0a                            add    $0xa,%al
+                           .data:00000338 c3                               ret    
+                           .data:00000339 32 c0                            xor    %al,%al
+                           .data:0000033b c3                               ret    
+                           .data:0000033c 3c 26                            cmp    $0x26,%al
+                           .data:0000033e 74 f9                            je     0x00000339
+                           .data:00000340 77 03                            ja     0x00000345
+                           .data:00000342 2c 1b                            sub    $0x1b,%al
+                           .data:00000344 c3                               ret    
+                           .data:00000345 2c 02                            sub    $0x2,%al
+                           .data:00000347 c3                               ret    
+                           .data:00000348 ba 00 00                         mov    $0x0,%dx
+                           .data:0000034b b9 0b 00                         mov    $0xb,%cx
+                           .data:0000034e bb 2a 00                         mov    $0x2a,%bx
+                           .data:00000351 03 da                            add    %dx,%bx
+                           .data:00000353 26 8b 3f                         mov    %es:(%bx),%di
+                           .data:00000356 bb 40 00                         mov    $0x40,%bx
+                           .data:00000359 03 da                            add    %dx,%bx
+                           .data:0000035b 26 8b 37                         mov    %es:(%bx),%si
+                           .data:0000035e e8 76 00                         call   0x000003d7
+                           .data:00000361 42                               inc    %dx
+                           .data:00000362 42                               inc    %dx
+                           .data:00000363 e2 e9                            loop   0x0000034e
+                           .data:00000365 be 00 06                         mov    $0x600,%si
+                           .data:00000368 bf 30 06                         mov    $0x630,%di
+                           .data:0000036b bb 96 08                         mov    $0x896,%bx
+                           .data:0000036e b9 10 00                         mov    $0x10,%cx
+                           .data:00000371 8a 04                            mov    (%si),%al
+                           .data:00000373 88 07                            mov    %al,(%bx)
+                           .data:00000375 e8 9f ff                         call   0x00000317
+                           .data:00000378 88 05                            mov    %al,(%di)
+                           .data:0000037a 47                               inc    %di
+                           .data:0000037b 46                               inc    %si
+                           .data:0000037c 43                               inc    %bx
+                           .data:0000037d 43                               inc    %bx
+                           .data:0000037e e2 f1                            loop   0x00000371
+                           .data:00000380 be 10 06                         mov    $0x610,%si
+                           .data:00000383 8a 04                            mov    (%si),%al
+                           .data:00000385 bb 96 09                         mov    $0x996,%bx
+                           .data:00000388 e8 cd 00                         call   0x00000458
+                           .data:0000038b 46                               inc    %si
+                           .data:0000038c 8a 04                            mov    (%si),%al
+                           .data:0000038e bb 9a 09                         mov    $0x99a,%bx
+                           .data:00000391 e8 c4 00                         call   0x00000458
+                           .data:00000394 be 12 06                         mov    $0x612,%si
+                           .data:00000397 8a 04                            mov    (%si),%al
+                           .data:00000399 bb d6 09                         mov    $0x9d6,%bx
+                           .data:0000039c e8 b9 00                         call   0x00000458
+                           .data:0000039f be 13 06                         mov    $0x613,%si
+                           .data:000003a2 8a 04                            mov    (%si),%al
+                           .data:000003a4 bb 16 0a                         mov    $0xa16,%bx
+                           .data:000003a7 e8 ae 00                         call   0x00000458
+                           .data:000003aa bb 14 06                         mov    $0x614,%bx
+                           .data:000003ad 8a 07                            mov    (%bx),%al
+                           .data:000003af b1 03                            mov    $0x3,%cl
+                           .data:000003b1 d2 e0                            shl    %cl,%al
+                           .data:000003b3 b4 00                            mov    $0x0,%ah
+                           .data:000003b5 be a7 00                         mov    $0xa7,%si
+                           .data:000003b8 03 f0                            add    %ax,%si
+                           .data:000003ba bf 96 0a                         mov    $0xa96,%di
+                           .data:000003bd e8 17 00                         call   0x000003d7
+                           .data:000003c0 bb 15 06                         mov    $0x615,%bx
+                           .data:000003c3 8a 07                            mov    (%bx),%al
+                           .data:000003c5 b1 02                            mov    $0x2,%cl
+                           .data:000003c7 d2 e0                            shl    %cl,%al
+                           .data:000003c9 b4 00                            mov    $0x0,%ah
+                           .data:000003cb be bf 00                         mov    $0xbf,%si
+                           .data:000003ce 03 f0                            add    %ax,%si
+                           .data:000003d0 bf 16 0b                         mov    $0xb16,%di
+                           .data:000003d3 e8 01 00                         call   0x000003d7
+                           .data:000003d6 c3                               ret    
+                           .data:000003d7 26 8a 04                         mov    %es:(%si),%al
+                           .data:000003da 46                               inc    %si
+                           .data:000003db 0a c0                            or     %al,%al
+                           .data:000003dd 74 06                            je     0x000003e5
+                           .data:000003df 88 05                            mov    %al,(%di)
+                           .data:000003e1 47                               inc    %di
+                           .data:000003e2 47                               inc    %di
+                           .data:000003e3 eb f2                            jmp    0x000003d7
+                           .data:000003e5 c3                               ret    
+                           .data:000003e6 bb 00 18                         mov    $0x1800,%bx
+                           .data:000003e9 33 c0                            xor    %ax,%ax
+                           .data:000003eb b9 1c 00                         mov    $0x1c,%cx
+                           .data:000003ee 89 07                            mov    %ax,(%bx)
+                           .data:000003f0 83 c3 02                         add    $0x2,%bx
+                           .data:000003f3 e2 f9                            loop   0x000003ee
+                           .data:000003f5 bb 18 18                         mov    $0x1818,%bx
+                           .data:000003f8 ba 2c 00                         mov    $0x2c,%dx
+                           .data:000003fb 89 17                            mov    %dx,(%bx)
+                           .data:000003fd bb 27 06                         mov    $0x627,%bx
+                           .data:00000400 c6 07 01                         movb   $0x1,(%bx)
+                           .data:00000403 b0 01                            mov    $0x1,%al
+                           .data:00000405 e8 2d 01                         call   0x00000535
+                           .data:00000408 c3                               ret    
+                           .data:00000409 bb 21 06                         mov    $0x621,%bx
+                           .data:0000040c 8a 07                            mov    (%bx),%al
+                           .data:0000040e a8 ff                            test   $0xff,%al
+                           .data:00000410 74 45                            je     0x00000457
+                           .data:00000412 a8 05                            test   $0x5,%al
+                           .data:00000414 74 04                            je     0x0000041a
+                           .data:00000416 e8 1c 01                         call   0x00000535
+                           .data:00000419 c3                               ret    
+                           .data:0000041a 8a d0                            mov    %al,%dl
+                           .data:0000041c bb 27 06                         mov    $0x627,%bx
+                           .data:0000041f 8a 07                            mov    (%bx),%al
+                           .data:00000421 b4 00                            mov    $0x0,%ah
+                           .data:00000423 48                               dec    %ax
+                           .data:00000424 78 1a                            js     0x00000440
+                           .data:00000426 74 1c                            je     0x00000444
+                           .data:00000428 7a 07                            jp     0x00000431
+                           .data:0000042a 48                               dec    %ax
+                           .data:0000042b 74 1b                            je     0x00000448
+                           .data:0000042d 7b 1d                            jnp    0x0000044c
+                           .data:0000042f eb 23                            jmp    0x00000454
+                           .data:00000431 40                               inc    %ax
+                           .data:00000432 7b 1c                            jnp    0x00000450
+                           .data:00000434 f6 c2 40                         test   $0x40,%dl
+                           .data:00000437 74 1e                            je     0x00000457
+                           .data:00000439 bb 2a 06                         mov    $0x62a,%bx
+                           .data:0000043c c6 07 01                         movb   $0x1,(%bx)
+                           .data:0000043f c3                               ret    
+                           .data:00000440 e8 77 00                         call   0x000004ba
+                           .data:00000443 c3                               ret    
+                           .data:00000444 e8 66 01                         call   0x000005ad
+                           .data:00000447 c3                               ret    
+                           .data:00000448 e8 ff 01                         call   0x0000064a
+                           .data:0000044b c3                               ret    
+                           .data:0000044c e8 34 02                         call   0x00000683
+                           .data:0000044f c3                               ret    
+                           .data:00000450 e8 81 02                         call   0x000006d4
+                           .data:00000453 c3                               ret    
+                           .data:00000454 e8 b2 02                         call   0x00000709
+                           .data:00000457 c3                               ret    
+                           .data:00000458 8a e0                            mov    %al,%ah
+                           .data:0000045a b1 04                            mov    $0x4,%cl
+                           .data:0000045c d2 e8                            shr    %cl,%al
+                           .data:0000045e 40                               inc    %ax
+                           .data:0000045f 88 07                            mov    %al,(%bx)
+                           .data:00000461 8a c4                            mov    %ah,%al
+                           .data:00000463 24 0f                            and    $0xf,%al
+                           .data:00000465 40                               inc    %ax
+                           .data:00000466 88 47 02                         mov    %al,0x2(%bx)
+                           .data:00000469 c3                               ret    
+                           .data:0000046a 60                               pusha  
+                           .data:0000046b be 56 00                         mov    $0x56,%si
+                           .data:0000046e b6 00                            mov    $0x0,%dh
+                           .data:00000470 03 f2                            add    %dx,%si
+                           .data:00000472 03 f2                            add    %dx,%si
+                           .data:00000474 26 8b 1c                         mov    %es:(%si),%bx
+                           .data:00000477 43                               inc    %bx
+                           .data:00000478 d0 e0                            shl    %al
+                           .data:0000047a b9 1c 00                         mov    $0x1c,%cx
+                           .data:0000047d 80 27 f1                         andb   $0xf1,(%bx)
+                           .data:00000480 08 07                            or     %al,(%bx)
+                           .data:00000482 43                               inc    %bx
+                           .data:00000483 43                               inc    %bx
+                           .data:00000484 e2 f7                            loop   0x0000047d
+                           .data:00000486 61                               popa   
+                           .data:00000487 c3                               ret    
+                           .data:00000488 e8 df ff                         call   0x0000046a
+                           .data:0000048b 52                               push   %dx
+                           .data:0000048c 0a d2                            or     %dl,%dl
+                           .data:0000048e 75 07                            jne    0x00000497
+                           .data:00000490 b2 07                            mov    $0x7,%dl
+                           .data:00000492 e8 d5 ff                         call   0x0000046a
+                           .data:00000495 eb 0a                            jmp    0x000004a1
+                           .data:00000497 80 fa 03                         cmp    $0x3,%dl
+                           .data:0000049a 77 05                            ja     0x000004a1
+                           .data:0000049c b2 08                            mov    $0x8,%dl
+                           .data:0000049e e8 c9 ff                         call   0x0000046a
+                           .data:000004a1 5a                               pop    %dx
+                           .data:000004a2 c3                               ret    
+                           .data:000004a3 bb 24 06                         mov    $0x624,%bx
+                           .data:000004a6 fe 07                            incb   (%bx)
+                           .data:000004a8 80 27 1f                         andb   $0x1f,(%bx)
+                           .data:000004ab 75 0c                            jne    0x000004b9
+                           .data:000004ad e4 05                            in     $0x5,%al
+                           .data:000004af 0a c0                            or     %al,%al
+                           .data:000004b1 b0 06                            mov    $0x6,%al
+                           .data:000004b3 74 02                            je     0x000004b7
+                           .data:000004b5 32 c0                            xor    %al,%al
+                           .data:000004b7 e6 05                            out    %al,$0x5
+                           .data:000004b9 c3                               ret    
+                           .data:000004ba 8a c2                            mov    %dl,%al
+                           .data:000004bc bb 28 06                         mov    $0x628,%bx
+                           .data:000004bf 8a 17                            mov    (%bx),%dl
+                           .data:000004c1 b6 00                            mov    $0x0,%dh
+                           .data:000004c3 a8 0a                            test   $0xa,%al
+                           .data:000004c5 74 39                            je     0x00000500
+                           .data:000004c7 a8 02                            test   $0x2,%al
+                           .data:000004c9 74 1c                            je     0x000004e7
+                           .data:000004cb 80 fa 0f                         cmp    $0xf,%dl
+                           .data:000004ce 75 0b                            jne    0x000004db
+                           .data:000004d0 c6 07 00                         movb   $0x0,(%bx)
+                           .data:000004d3 bb 02 18                         mov    $0x1802,%bx
+                           .data:000004d6 c7 07 18 58                      movw   $0x5818,(%bx)
+                           .data:000004da c3                               ret    
+                           .data:000004db fe 07                            incb   (%bx)
+                           .data:000004dd bb 02 18                         mov    $0x1802,%bx
+                           .data:000004e0 bb 03 18                         mov    $0x1803,%bx
+                           .data:000004e3 80 07 08                         addb   $0x8,(%bx)
+                           .data:000004e6 c3                               ret    
+                           .data:000004e7 80 fa 00                         cmp    $0x0,%dl
+                           .data:000004ea 75 0b                            jne    0x000004f7
+                           .data:000004ec c6 07 0f                         movb   $0xf,(%bx)
+                           .data:000004ef bb 02 18                         mov    $0x1802,%bx
+                           .data:000004f2 c7 07 18 d0                      movw   $0xd018,(%bx)
+                           .data:000004f6 c3                               ret    
+                           .data:000004f7 fe 0f                            decb   (%bx)
+                           .data:000004f9 bb 03 18                         mov    $0x1803,%bx
+                           .data:000004fc 80 2f 08                         subb   $0x8,(%bx)
+                           .data:000004ff c3                               ret    
+                           .data:00000500 a8 40                            test   $0x40,%al
+                           .data:00000502 74 11                            je     0x00000515
+                           .data:00000504 bb 30 06                         mov    $0x630,%bx
+                           .data:00000507 03 da                            add    %dx,%bx
+                           .data:00000509 8a 07                            mov    (%bx),%al
+                           .data:0000050b fe c0                            inc    %al
+                           .data:0000050d 3c 2d                            cmp    $0x2d,%al
+                           .data:0000050f 72 15                            jb     0x00000526
+                           .data:00000511 b0 00                            mov    $0x0,%al
+                           .data:00000513 eb 11                            jmp    0x00000526
+                           .data:00000515 a8 80                            test   $0x80,%al
+                           .data:00000517 74 1b                            je     0x00000534
+                           .data:00000519 bb 30 06                         mov    $0x630,%bx
+                           .data:0000051c 03 da                            add    %dx,%bx
+                           .data:0000051e 8a 07                            mov    (%bx),%al
+                           .data:00000520 2c 01                            sub    $0x1,%al
+                           .data:00000522 73 02                            jae    0x00000526
+                           .data:00000524 b0 2c                            mov    $0x2c,%al
+                           .data:00000526 88 07                            mov    %al,(%bx)
+                           .data:00000528 bf 96 08                         mov    $0x896,%di
+                           .data:0000052b 03 fa                            add    %dx,%di
+                           .data:0000052d 03 fa                            add    %dx,%di
+                           .data:0000052f e8 fa fd                         call   0x0000032c
+                           .data:00000532 88 05                            mov    %al,(%di)
+                           .data:00000534 c3                               ret    
+                           .data:00000535 bb 27 06                         mov    $0x627,%bx
+                           .data:00000538 8a 17                            mov    (%bx),%dl
+                           .data:0000053a a8 01                            test   $0x1,%al
+                           .data:0000053c 74 07                            je     0x00000545
+                           .data:0000053e 0a d2                            or     %dl,%dl
+                           .data:00000540 74 5a                            je     0x0000059c
+                           .data:00000542 4a                               dec    %dx
+                           .data:00000543 eb 06                            jmp    0x0000054b
+                           .data:00000545 80 fa 06                         cmp    $0x6,%dl
+                           .data:00000548 73 52                            jae    0x0000059c
+                           .data:0000054a 42                               inc    %dx
+                           .data:0000054b b6 00                            mov    $0x0,%dh
+                           .data:0000054d 52                               push   %dx
+                           .data:0000054e 8a 17                            mov    (%bx),%dl
+                           .data:00000550 b0 00                            mov    $0x0,%al
+                           .data:00000552 e8 33 ff                         call   0x00000488
+                           .data:00000555 5a                               pop    %dx
+                           .data:00000556 b0 01                            mov    $0x1,%al
+                           .data:00000558 e8 2d ff                         call   0x00000488
+                           .data:0000055b 88 17                            mov    %dl,(%bx)
+                           .data:0000055d be 28 06                         mov    $0x628,%si
+                           .data:00000560 c6 04 00                         movb   $0x0,(%si)
+                           .data:00000563 be 29 06                         mov    $0x629,%si
+                           .data:00000566 c6 04 00                         movb   $0x0,(%si)
+                           .data:00000569 be 1c 00                         mov    $0x1c,%si
+                           .data:0000056c 03 f2                            add    %dx,%si
+                           .data:0000056e 03 f2                            add    %dx,%si
+                           .data:00000570 26 8b 04                         mov    %es:(%si),%ax
+                           .data:00000573 bb 1a 18                         mov    $0x181a,%bx
+                           .data:00000576 89 07                            mov    %ax,(%bx)
+                           .data:00000578 80 c4 08                         add    $0x8,%ah
+                           .data:0000057b bb 02 18                         mov    $0x1802,%bx
+                           .data:0000057e 80 fa 01                         cmp    $0x1,%dl
+                           .data:00000581 b9 06 00                         mov    $0x6,%cx
+                           .data:00000584 77 0c                            ja     0x00000592
+                           .data:00000586 49                               dec    %cx
+                           .data:00000587 73 02                            jae    0x0000058b
+                           .data:00000589 04 08                            add    $0x8,%al
+                           .data:0000058b 89 07                            mov    %ax,(%bx)
+                           .data:0000058d 83 c3 04                         add    $0x4,%bx
+                           .data:00000590 33 c0                            xor    %ax,%ax
+                           .data:00000592 89 07                            mov    %ax,(%bx)
+                           .data:00000594 83 c3 04                         add    $0x4,%bx
+                           .data:00000597 80 c4 08                         add    $0x8,%ah
+                           .data:0000059a e2 f6                            loop   0x00000592
+                           .data:0000059c bb 27 06                         mov    $0x627,%bx
+                           .data:0000059f b8 00 50                         mov    $0x5000,%ax
+                           .data:000005a2 80 3f 06                         cmpb   $0x6,(%bx)
+                           .data:000005a5 75 03                            jne    0x000005aa
+                           .data:000005a7 b8 30 75                         mov    $0x7530,%ax
+                           .data:000005aa e7 20                            out    %ax,$0x20
+                           .data:000005ac c3                               ret    
+                           .data:000005ad 8a c2                            mov    %dl,%al
+                           .data:000005af bb 29 06                         mov    $0x629,%bx
+                           .data:000005b2 8a 17                            mov    (%bx),%dl
+                           .data:000005b4 b6 00                            mov    $0x0,%dh
+                           .data:000005b6 a8 0a                            test   $0xa,%al
+                           .data:000005b8 74 36                            je     0x000005f0
+                           .data:000005ba a8 02                            test   $0x2,%al
+                           .data:000005bc 74 19                            je     0x000005d7
+                           .data:000005be 80 fa 03                         cmp    $0x3,%dl
+                           .data:000005c1 75 0b                            jne    0x000005ce
+                           .data:000005c3 c6 07 00                         movb   $0x0,(%bx)
+                           .data:000005c6 bb 02 18                         mov    $0x1802,%bx
+                           .data:000005c9 c7 07 30 58                      movw   $0x5830,(%bx)
+                           .data:000005cd c3                               ret    
+                           .data:000005ce fe 07                            incb   (%bx)
+                           .data:000005d0 bb 03 18                         mov    $0x1803,%bx
+                           .data:000005d3 80 07 08                         addb   $0x8,(%bx)
+                           .data:000005d6 c3                               ret    
+                           .data:000005d7 80 fa 00                         cmp    $0x0,%dl
+                           .data:000005da 75 0b                            jne    0x000005e7
+                           .data:000005dc c6 07 03                         movb   $0x3,(%bx)
+                           .data:000005df bb 02 18                         mov    $0x1802,%bx
+                           .data:000005e2 c7 07 30 70                      movw   $0x7030,(%bx)
+                           .data:000005e6 c3                               ret    
+                           .data:000005e7 fe 0f                            decb   (%bx)
+                           .data:000005e9 bb 03 18                         mov    $0x1803,%bx
+                           .data:000005ec 80 2f 08                         subb   $0x8,(%bx)
+                           .data:000005ef c3                               ret    
+                           .data:000005f0 a8 c0                            test   $0xc0,%al
+                           .data:000005f2 74 55                            je     0x00000649
+                           .data:000005f4 bb 96 09                         mov    $0x996,%bx
+                           .data:000005f7 be 10 06                         mov    $0x610,%si
+                           .data:000005fa 80 fa 02                         cmp    $0x2,%dl
+                           .data:000005fd 72 04                            jb     0x00000603
+                           .data:000005ff 46                               inc    %si
+                           .data:00000600 bb 9a 09                         mov    $0x99a,%bx
+                           .data:00000603 a8 40                            test   $0x40,%al
+                           .data:00000605 8a 04                            mov    (%si),%al
+                           .data:00000607 74 1e                            je     0x00000627
+                           .data:00000609 f6 c2 01                         test   $0x1,%dl
+                           .data:0000060c 75 0a                            jne    0x00000618
+                           .data:0000060e 04 10                            add    $0x10,%al
+                           .data:00000610 3c a0                            cmp    $0xa0,%al
+                           .data:00000612 72 30                            jb     0x00000644
+                           .data:00000614 24 0f                            and    $0xf,%al
+                           .data:00000616 eb 2c                            jmp    0x00000644
+                           .data:00000618 40                               inc    %ax
+                           .data:00000619 8a e0                            mov    %al,%ah
+                           .data:0000061b 24 0f                            and    $0xf,%al
+                           .data:0000061d 3c 0a                            cmp    $0xa,%al
+                           .data:0000061f 8a c4                            mov    %ah,%al
+                           .data:00000621 72 21                            jb     0x00000644
+                           .data:00000623 24 f0                            and    $0xf0,%al
+                           .data:00000625 eb 1d                            jmp    0x00000644
+                           .data:00000627 f6 c2 01                         test   $0x1,%dl
+                           .data:0000062a 75 0e                            jne    0x0000063a
+                           .data:0000062c a8 f0                            test   $0xf0,%al
+                           .data:0000062e 74 04                            je     0x00000634
+                           .data:00000630 2c 10                            sub    $0x10,%al
+                           .data:00000632 eb 10                            jmp    0x00000644
+                           .data:00000634 24 0f                            and    $0xf,%al
+                           .data:00000636 0c 90                            or     $0x90,%al
+                           .data:00000638 eb 0a                            jmp    0x00000644
+                           .data:0000063a a8 0f                            test   $0xf,%al
+                           .data:0000063c 75 05                            jne    0x00000643
+                           .data:0000063e 24 f0                            and    $0xf0,%al
+                           .data:00000640 0c 09                            or     $0x9,%al
+                           .data:00000642 40                               inc    %ax
+                           .data:00000643 48                               dec    %ax
+                           .data:00000644 88 04                            mov    %al,(%si)
+                           .data:00000646 e8 0f fe                         call   0x00000458
+                           .data:00000649 c3                               ret    
+                           .data:0000064a f6 c2 ca                         test   $0xca,%dl
+                           .data:0000064d 74 33                            je     0x00000682
+                           .data:0000064f bb 12 06                         mov    $0x612,%bx
+                           .data:00000652 8a 07                            mov    (%bx),%al
+                           .data:00000654 f6 c2 42                         test   $0x42,%dl
+                           .data:00000657 74 0f                            je     0x00000668
+                           .data:00000659 40                               inc    %ax
+                           .data:0000065a 3c 0a                            cmp    $0xa,%al
+                           .data:0000065c 75 02                            jne    0x00000660
+                           .data:0000065e b0 10                            mov    $0x10,%al
+                           .data:00000660 3c 13                            cmp    $0x13,%al
+                           .data:00000662 72 16                            jb     0x0000067a
+                           .data:00000664 b0 01                            mov    $0x1,%al
+                           .data:00000666 eb 12                            jmp    0x0000067a
+                           .data:00000668 0a c0                            or     %al,%al
+                           .data:0000066a 75 01                            jne    0x0000066d
+                           .data:0000066c 40                               inc    %ax
+                           .data:0000066d 48                               dec    %ax
+                           .data:0000066e 3c 0f                            cmp    $0xf,%al
+                           .data:00000670 75 02                            jne    0x00000674
+                           .data:00000672 b0 09                            mov    $0x9,%al
+                           .data:00000674 0a c0                            or     %al,%al
+                           .data:00000676 75 02                            jne    0x0000067a
+                           .data:00000678 b0 12                            mov    $0x12,%al
+                           .data:0000067a 88 07                            mov    %al,(%bx)
+                           .data:0000067c bb d6 09                         mov    $0x9d6,%bx
+                           .data:0000067f e8 d6 fd                         call   0x00000458
+                           .data:00000682 c3                               ret    
+                           .data:00000683 f6 c2 ca                         test   $0xca,%dl
+                           .data:00000686 74 4b                            je     0x000006d3
+                           .data:00000688 bb 13 06                         mov    $0x613,%bx
+                           .data:0000068b 8a 07                            mov    (%bx),%al
+                           .data:0000068d f6 c2 42                         test   $0x42,%dl
+                           .data:00000690 74 1b                            je     0x000006ad
+                           .data:00000692 40                               inc    %ax
+                           .data:00000693 3c 0a                            cmp    $0xa,%al
+                           .data:00000695 75 02                            jne    0x00000699
+                           .data:00000697 b0 10                            mov    $0x10,%al
+                           .data:00000699 3c 1a                            cmp    $0x1a,%al
+                           .data:0000069b 75 02                            jne    0x0000069f
+                           .data:0000069d b0 20                            mov    $0x20,%al
+                           .data:0000069f 3c 2a                            cmp    $0x2a,%al
+                           .data:000006a1 75 02                            jne    0x000006a5
+                           .data:000006a3 b0 30                            mov    $0x30,%al
+                           .data:000006a5 3c 32                            cmp    $0x32,%al
+                           .data:000006a7 72 22                            jb     0x000006cb
+                           .data:000006a9 b0 01                            mov    $0x1,%al
+                           .data:000006ab eb 1e                            jmp    0x000006cb
+                           .data:000006ad 0a c0                            or     %al,%al
+                           .data:000006af 75 01                            jne    0x000006b2
+                           .data:000006b1 40                               inc    %ax
+                           .data:000006b2 48                               dec    %ax
+                           .data:000006b3 3c 0f                            cmp    $0xf,%al
+                           .data:000006b5 75 02                            jne    0x000006b9
+                           .data:000006b7 b0 09                            mov    $0x9,%al
+                           .data:000006b9 3c 1f                            cmp    $0x1f,%al
+                           .data:000006bb 75 02                            jne    0x000006bf
+                           .data:000006bd b0 19                            mov    $0x19,%al
+                           .data:000006bf 3c 2f                            cmp    $0x2f,%al
+                           .data:000006c1 75 02                            jne    0x000006c5
+                           .data:000006c3 b0 29                            mov    $0x29,%al
+                           .data:000006c5 0a c0                            or     %al,%al
+                           .data:000006c7 75 02                            jne    0x000006cb
+                           .data:000006c9 b0 31                            mov    $0x31,%al
+                           .data:000006cb 88 07                            mov    %al,(%bx)
+                           .data:000006cd bb 16 0a                         mov    $0xa16,%bx
+                           .data:000006d0 e8 85 fd                         call   0x00000458
+                           .data:000006d3 c3                               ret    
+                           .data:000006d4 f6 c2 ca                         test   $0xca,%dl
+                           .data:000006d7 74 2f                            je     0x00000708
+                           .data:000006d9 bb 14 06                         mov    $0x614,%bx
+                           .data:000006dc 8a 07                            mov    (%bx),%al
+                           .data:000006de b4 00                            mov    $0x0,%ah
+                           .data:000006e0 f6 c2 88                         test   $0x88,%dl
+                           .data:000006e3 74 08                            je     0x000006ed
+                           .data:000006e5 48                               dec    %ax
+                           .data:000006e6 79 0d                            jns    0x000006f5
+                           .data:000006e8 b8 02 00                         mov    $0x2,%ax
+                           .data:000006eb eb 08                            jmp    0x000006f5
+                           .data:000006ed fe c0                            inc    %al
+                           .data:000006ef 3c 03                            cmp    $0x3,%al
+                           .data:000006f1 72 02                            jb     0x000006f5
+                           .data:000006f3 b0 00                            mov    $0x0,%al
+                           .data:000006f5 88 07                            mov    %al,(%bx)
+                           .data:000006f7 b1 03                            mov    $0x3,%cl
+                           .data:000006f9 d2 e0                            shl    %cl,%al
+                           .data:000006fb b4 00                            mov    $0x0,%ah
+                           .data:000006fd be a7 00                         mov    $0xa7,%si
+                           .data:00000700 03 f0                            add    %ax,%si
+                           .data:00000702 bf 96 0a                         mov    $0xa96,%di
+                           .data:00000705 e8 cf fc                         call   0x000003d7
+                           .data:00000708 c3                               ret    
+                           .data:00000709 f6 c2 ca                         test   $0xca,%dl
+                           .data:0000070c 74 2c                            je     0x0000073a
+                           .data:0000070e bb 15 06                         mov    $0x615,%bx
+                           .data:00000711 8a 07                            mov    (%bx),%al
+                           .data:00000713 b4 00                            mov    $0x0,%ah
+                           .data:00000715 f6 c2 88                         test   $0x88,%dl
+                           .data:00000718 74 08                            je     0x00000722
+                           .data:0000071a 48                               dec    %ax
+                           .data:0000071b 79 0c                            jns    0x00000729
+                           .data:0000071d b8 04 00                         mov    $0x4,%ax
+                           .data:00000720 eb 07                            jmp    0x00000729
+                           .data:00000722 40                               inc    %ax
+                           .data:00000723 3c 05                            cmp    $0x5,%al
+                           .data:00000725 72 02                            jb     0x00000729
+                           .data:00000727 b0 00                            mov    $0x0,%al
+                           .data:00000729 88 07                            mov    %al,(%bx)
+                           .data:0000072b d0 e0                            shl    %al
+                           .data:0000072d d0 e0                            shl    %al
+                           .data:0000072f be bf 00                         mov    $0xbf,%si
+                           .data:00000732 03 f0                            add    %ax,%si
+                           .data:00000734 bf 16 0b                         mov    $0xb16,%di
+                           .data:00000737 e8 9d fc                         call   0x000003d7
+                           .data:0000073a c3                               ret    
+                           .data:0000073b be 30 06                         mov    $0x630,%si
+                           .data:0000073e bf 00 06                         mov    $0x600,%di
+                           .data:00000741 b9 10 00                         mov    $0x10,%cx
+                           .data:00000744 8a 04                            mov    (%si),%al
+                           .data:00000746 e8 e3 fb                         call   0x0000032c
+                           .data:00000749 88 05                            mov    %al,(%di)
+                           .data:0000074b 47                               inc    %di
+                           .data:0000074c 46                               inc    %si
+                           .data:0000074d e2 f5                            loop   0x00000744
+                           .data:0000074f be 00 06                         mov    $0x600,%si
+                           .data:00000752 bf 40 06                         mov    $0x640,%di
+                           .data:00000755 b9 0b 00                         mov    $0xb,%cx
+                           .data:00000758 8b 04                            mov    (%si),%ax
+                           .data:0000075a 8b 15                            mov    (%di),%dx
+                           .data:0000075c 83 c6 02                         add    $0x2,%si
+                           .data:0000075f 83 c7 02                         add    $0x2,%di
+                           .data:00000762 3b c2                            cmp    %dx,%ax
+                           .data:00000764 75 03                            jne    0x00000769
+                           .data:00000766 e2 f0                            loop   0x00000758
+                           .data:00000768 c3                               ret    
+                           .data:00000769 bb 1d 06                         mov    $0x61d,%bx
+                           .data:0000076c fe 07                            incb   (%bx)
+                           .data:0000076e 75 02                            jne    0x00000772
+                           .data:00000770 fe 0f                            decb   (%bx)
+                           .data:00000772 c3                               ret    
+                           .data:00000773 bb 25 06                         mov    $0x625,%bx
+                           .data:00000776 bf 20 06                         mov    $0x620,%di
+                           .data:00000779 8a 05                            mov    (%di),%al
+                           .data:0000077b be 22 06                         mov    $0x622,%si
+                           .data:0000077e 3a 04                            cmp    (%si),%al
+                           .data:00000780 75 1f                            jne    0x000007a1
+                           .data:00000782 24 ca                            and    $0xca,%al
+                           .data:00000784 74 1b                            je     0x000007a1
+                           .data:00000786 80 3f 25                         cmpb   $0x25,(%bx)
+                           .data:00000789 72 13                            jb     0x0000079e
+                           .data:0000078b bb 26 06                         mov    $0x626,%bx
+                           .data:0000078e fe 07                            incb   (%bx)
+                           .data:00000790 80 3f 0f                         cmpb   $0xf,(%bx)
+                           .data:00000793 72 0f                            jb     0x000007a4
+                           .data:00000795 c6 07 00                         movb   $0x0,(%bx)
+                           .data:00000798 bb 21 06                         mov    $0x621,%bx
+                           .data:0000079b 08 07                            or     %al,(%bx)
+                           .data:0000079d c3                               ret    
+                           .data:0000079e fe 07                            incb   (%bx)
+                           .data:000007a0 c3                               ret    
+                           .data:000007a1 c6 07 00                         movb   $0x0,(%bx)
+                           .data:000007a4 c3                               ret    
+                           .data:000007a5 1e                               push   %ds
+                           .data:000007a6 60                               pusha  
+                           .data:000007a7 33 c0                            xor    %ax,%ax
+                           .data:000007a9 e6 88                            out    %al,$0x88
+                           .data:000007ab e6 89                            out    %al,$0x89
+                           .data:000007ad e6 8a                            out    %al,$0x8a
+                           .data:000007af e6 8b                            out    %al,$0x8b
+                           .data:000007b1 e6 90                            out    %al,$0x90
+                           .data:000007b3 bb 50 07                         mov    $0x750,%bx
+                           .data:000007b6 89 47 02                         mov    %ax,0x2(%bx)
+                           .data:000007b9 89 47 04                         mov    %ax,0x4(%bx)
+                           .data:000007bc c7 07 01 00                      movw   $0x1,(%bx)
+                           .data:000007c0 8e c0                            mov    %ax,%es
+                           .data:000007c2 bf 00 04                         mov    $0x400,%di
+                           .data:000007c5 b8 b0 ff                         mov    $0xffb0,%ax
+                           .data:000007c8 8e d8                            mov    %ax,%ds
+                           .data:000007ca be d5 00                         mov    $0xd5,%si
+                           .data:000007cd b9 10 00                         mov    $0x10,%cx
+                           .data:000007d0 fc                               cld    
+                           .data:000007d1 f3 a5                            rep movsw %ds:(%si),%es:(%di)
+                           .data:000007d3 b0 0b                            mov    $0xb,%al
+                           .data:000007d5 e6 91                            out    %al,$0x91
+                           .data:000007d7 b0 10                            mov    $0x10,%al
+                           .data:000007d9 e6 8f                            out    %al,$0x8f
+                           .data:000007db b0 03                            mov    $0x3,%al
+                           .data:000007dd e6 90                            out    %al,$0x90
+                           .data:000007df 61                               popa   
+                           .data:000007e0 1f                               pop    %ds
+                           .data:000007e1 cb                               lret   
+                           .data:000007e2 06                               push   %es
+                           .data:000007e3 60                               pusha  
+                           .data:000007e4 bb 50 07                         mov    $0x750,%bx
+                           .data:000007e7 83 3f 01                         cmpw   $0x1,(%bx)
+                           .data:000007ea 75 58                            jne    0x00000844
+                           .data:000007ec b8 b0 ff                         mov    $0xffb0,%ax
+                           .data:000007ef 8e c0                            mov    %ax,%es
+                           .data:000007f1 83 7f 04 00                      cmpw   $0x0,0x4(%bx)
+                           .data:000007f5 75 4a                            jne    0x00000841
+                           .data:000007f7 8b 77 02                         mov    0x2(%bx),%si
+                           .data:000007fa 26 8b 84 fe 00                   mov    %es:0xfe(%si),%ax
+                           .data:000007ff e7 80                            out    %ax,$0x80
+                           .data:00000801 26 8a 84 00 01                   mov    %es:0x100(%si),%al
+                           .data:00000806 e6 88                            out    %al,$0x88
+                           .data:00000808 83 ee 09                         sub    $0x9,%si
+                           .data:0000080b 26 8b 84 fe 00                   mov    %es:0xfe(%si),%ax
+                           .data:00000810 e7 82                            out    %ax,$0x82
+                           .data:00000812 26 8a 84 00 01                   mov    %es:0x100(%si),%al
+                           .data:00000817 e6 89                            out    %al,$0x89
+                           .data:00000819 83 47 02 03                      addw   $0x3,0x2(%bx)
+                           .data:0000081d 83 7f 02 75                      cmpw   $0x75,0x2(%bx)
+                           .data:00000821 72 0c                            jb     0x0000082f
+                           .data:00000823 c7 07 00 00                      movw   $0x0,(%bx)
+                           .data:00000827 33 c0                            xor    %ax,%ax
+                           .data:00000829 e6 88                            out    %al,$0x88
+                           .data:0000082b e6 89                            out    %al,$0x89
+                           .data:0000082d eb 12                            jmp    0x00000841
+                           .data:0000082f 83 7f 02 51                      cmpw   $0x51,0x2(%bx)
+                           .data:00000833 72 07                            jb     0x0000083c
+                           .data:00000835 c7 47 04 03 00                   movw   $0x3,0x4(%bx)
+                           .data:0000083a eb 05                            jmp    0x00000841
+                           .data:0000083c c7 47 04 01 00                   movw   $0x1,0x4(%bx)
+                           .data:00000841 ff 4f 04                         decw   0x4(%bx)
+                           .data:00000844 61                               popa   
+                           .data:00000845 07                               pop    %es
+                           .data:00000846 cb                               lret   
+                           .data:00000847 53                               push   %bx
+                           .data:00000848 b8 01 00                         mov    $0x1,%ax
+                           .data:0000084b 83 fb 40                         cmp    $0x40,%bx
+                           .data:0000084e 73 22                            jae    0x00000872
+                           .data:00000850 8b c3                            mov    %bx,%ax
+                           .data:00000852 05 80 01                         add    $0x180,%ax
+                           .data:00000855 e7 bc                            out    %ax,$0xbc
+                           .data:00000857 b0 10                            mov    $0x10,%al
+                           .data:00000859 e6 be                            out    %al,$0xbe
+                           .data:0000085b 33 d2                            xor    %dx,%dx
+                           .data:0000085d 42                               inc    %dx
+                           .data:0000085e b8 02 00                         mov    $0x2,%ax
+                           .data:00000861 83 fa 20                         cmp    $0x20,%dx
+                           .data:00000864 74 0c                            je     0x00000872
+                           .data:00000866 e4 be                            in     $0xbe,%al
+                           .data:00000868 24 01                            and    $0x1,%al
+                           .data:0000086a 74 f1                            je     0x0000085d
+                           .data:0000086c e5 ba                            in     $0xba,%ax
+                           .data:0000086e 8b d0                            mov    %ax,%dx
+                           .data:00000870 33 c0                            xor    %ax,%ax
+                           .data:00000872 5b                               pop    %bx
+                           .data:00000873 cb                               lret   
+                           .data:00000874 52                               push   %dx
+                           .data:00000875 53                               push   %bx
+                           .data:00000876 b8 01 00                         mov    $0x1,%ax
+                           .data:00000879 83 fb 40                         cmp    $0x40,%bx
+                           .data:0000087c 73 25                            jae    0x000008a3
+                           .data:0000087e 8b c3                            mov    %bx,%ax
+                           .data:00000880 05 40 01                         add    $0x140,%ax
+                           .data:00000883 e7 bc                            out    %ax,$0xbc
+                           .data:00000885 8b c2                            mov    %dx,%ax
+                           .data:00000887 e7 ba                            out    %ax,$0xba
+                           .data:00000889 b0 20                            mov    $0x20,%al
+                           .data:0000088b e6 be                            out    %al,$0xbe
+                           .data:0000088d 33 d2                            xor    %dx,%dx
+                           .data:0000088f 42                               inc    %dx
+                           .data:00000890 b8 02 00                         mov    $0x2,%ax
+                           .data:00000893 81 fa 00 16                      cmp    $0x1600,%dx
+                           .data:00000897 74 0a                            je     0x000008a3
+                           .data:00000899 e4 be                            in     $0xbe,%al
+                           .data:0000089b 24 02                            and    $0x2,%al
+                           .data:0000089d 3c 02                            cmp    $0x2,%al
+                           .data:0000089f 75 ee                            jne    0x0000088f
+                           .data:000008a1 33 c0                            xor    %ax,%ax
+                           .data:000008a3 5b                               pop    %bx
+                           .data:000008a4 5a                               pop    %dx
+                           .data:000008a5 cb                               lret   
+                           .data:000008a6 b8 00 70                         mov    $0x7000,%ax
+                           .data:000008a9 e7 20                            out    %ax,$0x20
+                           .data:000008ab b8 00 50                         mov    $0x5000,%ax
+                           .data:000008ae e7 22                            out    %ax,$0x22
+                           .data:000008b0 b8 00 40                         mov    $0x4000,%ax
+                           .data:000008b3 e7 24                            out    %ax,$0x24
+                           .data:000008b5 b8 00 30                         mov    $0x3000,%ax
+                           .data:000008b8 e7 26                            out    %ax,$0x26
+                           .data:000008ba b8 00 20                         mov    $0x2000,%ax
+                           .data:000008bd e7 28                            out    %ax,$0x28
+                           .data:000008bf b8 00 10                         mov    $0x1000,%ax
+                           .data:000008c2 e7 2a                            out    %ax,$0x2a
+                           .data:000008c4 33 c0                            xor    %ax,%ax
+                           .data:000008c6 e7 2c                            out    %ax,$0x2c
+                           .data:000008c8 8e c0                            mov    %ax,%es
+                           .data:000008ca bf 00 08                         mov    $0x800,%di
+                           .data:000008cd b9 00 04                         mov    $0x400,%cx
+                           .data:000008d0 f3 ab                            rep stos %ax,%es:(%di)
+                           .data:000008d2 b8 b0 ff                         mov    $0xffb0,%ax
+                           .data:000008d5 8e c0                            mov    %ax,%es
+                           .data:000008d7 bb 14 07                         mov    $0x714,%bx
+                           .data:000008da 8b 07                            mov    (%bx),%ax
+                           .data:000008dc 3c 01                            cmp    $0x1,%al
+                           .data:000008de 75 08                            jne    0x000008e8
+                           .data:000008e0 bb bb 01                         mov    $0x1bb,%bx
+                           .data:000008e3 bf 9a 09                         mov    $0x99a,%di
+                           .data:000008e6 eb 06                            jmp    0x000008ee
+                           .data:000008e8 bb 73 01                         mov    $0x173,%bx
+                           .data:000008eb bf 16 09                         mov    $0x916,%di
+                           .data:000008ee b9 06 00                         mov    $0x6,%cx
+                           .data:000008f1 51                               push   %cx
+                           .data:000008f2 b9 06 00                         mov    $0x6,%cx
+                           .data:000008f5 26 8b 07                         mov    %es:(%bx),%ax
+                           .data:000008f8 89 05                            mov    %ax,(%di)
+                           .data:000008fa 83 c7 02                         add    $0x2,%di
+                           .data:000008fd 83 c3 02                         add    $0x2,%bx
+                           .data:00000900 e2 f3                            loop   0x000008f5
+                           .data:00000902 83 c7 34                         add    $0x34,%di
+                           .data:00000905 59                               pop    %cx
+                           .data:00000906 e2 e9                            loop   0x000008f1
+                           .data:00000908 b8 05 00                         mov    $0x5,%ax
+                           .data:0000090b e7 00                            out    %ax,$0x0
+                           .data:0000090d cb                               lret   
+                           .data:0000090e 51                               push   %cx
+                           .data:0000090f 33 ff                            xor    %di,%di
+                           .data:00000911 ba 01 80                         mov    $0x8001,%dx
+                           .data:00000914 b9 08 00                         mov    $0x8,%cx
+                           .data:00000917 51                               push   %cx
+                           .data:00000918 26 8a 01                         mov    %es:(%bx,%di),%al
+                           .data:0000091b b9 08 00                         mov    $0x8,%cx
+                           .data:0000091e 57                               push   %di
+                           .data:0000091f 53                               push   %bx
+                           .data:00000920 33 ff                            xor    %di,%di
+                           .data:00000922 8b de                            mov    %si,%bx
+                           .data:00000924 84 c6                            test   %al,%dh
+                           .data:00000926 74 05                            je     0x0000092d
+                           .data:00000928 08 11                            or     %dl,(%bx,%di)
+                           .data:0000092a 08 51 01                         or     %dl,0x1(%bx,%di)
+                           .data:0000092d d0 ee                            shr    %dh
+                           .data:0000092f 83 c7 02                         add    $0x2,%di
+                           .data:00000932 e2 f0                            loop   0x00000924
+                           .data:00000934 5b                               pop    %bx
+                           .data:00000935 5f                               pop    %di
+                           .data:00000936 b6 80                            mov    $0x80,%dh
+                           .data:00000938 d0 e2                            shl    %dl
+                           .data:0000093a 47                               inc    %di
+                           .data:0000093b 59                               pop    %cx
+                           .data:0000093c e2 d9                            loop   0x00000917
+                           .data:0000093e 83 c6 10                         add    $0x10,%si
+                           .data:00000941 83 c3 08                         add    $0x8,%bx
+                           .data:00000944 59                               pop    %cx
+                           .data:00000945 e2 c7                            loop   0x0000090e
+                           .data:00000947 cb                               lret   
+                           .data:00000948 57                               push   %di
+                           .data:00000949 bb 00 06                         mov    $0x600,%bx
+                           .data:0000094c b9 10 00                         mov    $0x10,%cx
+                           .data:0000094f 8b f1                            mov    %cx,%si
+                           .data:00000951 4e                               dec    %si
+                           .data:00000952 80 38 00                         cmpb   $0x0,(%bx,%si)
+                           .data:00000955 75 02                            jne    0x00000959
+                           .data:00000957 e2 f8                            loop   0x00000951
+                           .data:00000959 ba 10 00                         mov    $0x10,%dx
+                           .data:0000095c 2b d1                            sub    %cx,%dx
+                           .data:0000095e be 14 07                         mov    $0x714,%si
+                           .data:00000961 80 3c 01                         cmpb   $0x1,(%si)
+                           .data:00000964 75 0a                            jne    0x00000970
+                           .data:00000966 d0 e2                            shl    %dl
+                           .data:00000968 d0 e2                            shl    %dl
+                           .data:0000096a 81 c2 08 50                      add    $0x5008,%dx
+                           .data:0000096e eb 0e                            jmp    0x0000097e
+                           .data:00000970 8a c2                            mov    %dl,%al
+                           .data:00000972 8a f0                            mov    %al,%dh
+                           .data:00000974 32 d2                            xor    %dl,%dl
+                           .data:00000976 d0 e6                            shl    %dh
+                           .data:00000978 d0 e6                            shl    %dh
+                           .data:0000097a 81 c2 60 30                      add    $0x3060,%dx
+                           .data:0000097e 83 f9 00                         cmp    $0x0,%cx
+                           .data:00000981 74 05                            je     0x00000988
+                           .data:00000983 9a 8a 09 00 ff                   lcall  $0xff00,$0x98a
+                           .data:00000988 5f                               pop    %di
+                           .data:00000989 cb                               lret   
+                           .data:0000098a 52                               push   %dx
+                           .data:0000098b 53                               push   %bx
+                           .data:0000098c 8a c1                            mov    %cl,%al
+                           .data:0000098e e6 06                            out    %al,$0x6
+                           .data:00000990 bf 00 18                         mov    $0x1800,%di
+                           .data:00000993 be 14 07                         mov    $0x714,%si
+                           .data:00000996 32 e4                            xor    %ah,%ah
+                           .data:00000998 8a 07                            mov    (%bx),%al
+                           .data:0000099a 80 3c 01                         cmpb   $0x1,(%si)
+                           .data:0000099d 75 02                            jne    0x000009a1
+                           .data:0000099f 04 3d                            add    $0x3d,%al
+                           .data:000009a1 89 05                            mov    %ax,(%di)
+                           .data:000009a3 89 55 02                         mov    %dx,0x2(%di)
+                           .data:000009a6 43                               inc    %bx
+                           .data:000009a7 83 c7 04                         add    $0x4,%di
+                           .data:000009aa 80 3c 01                         cmpb   $0x1,(%si)
+                           .data:000009ad 75 05                            jne    0x000009b4
+                           .data:000009af 80 c2 08                         add    $0x8,%dl
+                           .data:000009b2 eb 03                            jmp    0x000009b7
+                           .data:000009b4 80 c6 08                         add    $0x8,%dh
+                           .data:000009b7 e2 dd                            loop   0x00000996
+                           .data:000009b9 5b                               pop    %bx
+                           .data:000009ba 5a                               pop    %dx
+                           .data:000009bb cb                               lret   
+                           .data:000009bc 57                               push   %di
+                           .data:000009bd be 14 07                         mov    $0x714,%si
+                           .data:000009c0 bf 4d 0a                         mov    $0xa4d,%di
+                           .data:000009c3 80 3c 01                         cmpb   $0x1,(%si)
+                           .data:000009c6 75 03                            jne    0x000009cb
+                           .data:000009c8 bf 5b 08                         mov    $0x85b,%di
+                           .data:000009cb b9 06 00                         mov    $0x6,%cx
+                           .data:000009ce f7 e1                            mul    %cx
+                           .data:000009d0 bb 03 02                         mov    $0x203,%bx
+                           .data:000009d3 03 d8                            add    %ax,%bx
+                           .data:000009d5 b8 b0 ff                         mov    $0xffb0,%ax
+                           .data:000009d8 8e c0                            mov    %ax,%es
+                           .data:000009da b9 06 00                         mov    $0x6,%cx
+                           .data:000009dd 26 8a 07                         mov    %es:(%bx),%al
+                           .data:000009e0 8a e0                            mov    %al,%ah
+                           .data:000009e2 24 0f                            and    $0xf,%al
+                           .data:000009e4 80 e4 f0                         and    $0xf0,%ah
+                           .data:000009e7 51                               push   %cx
+                           .data:000009e8 b9 04 00                         mov    $0x4,%cx
+                           .data:000009eb d2 ec                            shr    %cl,%ah
+                           .data:000009ed 59                               pop    %cx
+                           .data:000009ee 8b d0                            mov    %ax,%dx
+                           .data:000009f0 03 d0                            add    %ax,%dx
+                           .data:000009f2 80 3c 01                         cmpb   $0x1,(%si)
+                           .data:000009f5 75 1c                            jne    0x00000a13
+                           .data:000009f7 51                               push   %cx
+                           .data:000009f8 b9 06 00                         mov    $0x6,%cx
+                           .data:000009fb 80 25 f0                         andb   $0xf0,(%di)
+                           .data:000009fe 00 15                            add    %dl,(%di)
+                           .data:00000a00 80 65 40 f0                      andb   $0xf0,0x40(%di)
+                           .data:00000a04 00 75 40                         add    %dh,0x40(%di)
+                           .data:00000a07 83 c7 42                         add    $0x42,%di
+                           .data:00000a0a e2 ef                            loop   0x000009fb
+                           .data:00000a0c 59                               pop    %cx
+                           .data:00000a0d 81 ef 0c 01                      sub    $0x10c,%di
+                           .data:00000a11 eb 1a                            jmp    0x00000a2d
+                           .data:00000a13 51                               push   %cx
+                           .data:00000a14 b9 06 00                         mov    $0x6,%cx
+                           .data:00000a17 80 25 f0                         andb   $0xf0,(%di)
+                           .data:00000a1a 00 15                            add    %dl,(%di)
+                           .data:00000a1c 80 65 02 f0                      andb   $0xf0,0x2(%di)
+                           .data:00000a20 00 75 02                         add    %dh,0x2(%di)
+                           .data:00000a23 83 ef 3e                         sub    $0x3e,%di
+                           .data:00000a26 e2 ef                            loop   0x00000a17
+                           .data:00000a28 59                               pop    %cx
+                           .data:00000a29 81 c7 78 01                      add    $0x178,%di
+                           .data:00000a2d 43                               inc    %bx
+                           .data:00000a2e e2 ad                            loop   0x000009dd
+                           .data:00000a30 5f                               pop    %di
+                           .data:00000a31 cb                               lret   
+                           .data:00000a32 8a 04                            mov    (%si),%al
+                           .data:00000a34 3a c2                            cmp    %dl,%al
+                           .data:00000a36 76 05                            jbe    0x00000a3d
+                           .data:00000a38 c6 04 00                         movb   $0x0,(%si)
+                           .data:00000a3b eb 09                            jmp    0x00000a46
+                           .data:00000a3d 24 0f                            and    $0xf,%al
+                           .data:00000a3f 3c 09                            cmp    $0x9,%al
+                           .data:00000a41 76 03                            jbe    0x00000a46
+                           .data:00000a43 c6 04 00                         movb   $0x0,(%si)
+                           .data:00000a46 46                               inc    %si
+                           .data:00000a47 cb                               lret   
+                           .data:00000a48 60                               pusha  
+                           .data:00000a49 be 16 07                         mov    $0x716,%si
+                           .data:00000a4c 80 3c 01                         cmpb   $0x1,(%si)
+                           .data:00000a4f 75 08                            jne    0x00000a59
+                           .data:00000a51 bb 23 06                         mov    $0x623,%bx
+                           .data:00000a54 c6 07 01                         movb   $0x1,(%bx)
+                           .data:00000a57 eb 4c                            jmp    0x00000aa5
+                           .data:00000a59 80 3c 02                         cmpb   $0x2,(%si)
+                           .data:00000a5c 75 15                            jne    0x00000a73
+                           .data:00000a5e be 10 07                         mov    $0x710,%si
+                           .data:00000a61 fe 04                            incb   (%si)
+                           .data:00000a63 80 3c 20                         cmpb   $0x20,(%si)
+                           .data:00000a66 75 09                            jne    0x00000a71
+                           .data:00000a68 c6 04 00                         movb   $0x0,(%si)
+                           .data:00000a6b be 16 07                         mov    $0x716,%si
+                           .data:00000a6e c6 04 00                         movb   $0x0,(%si)
+                           .data:00000a71 eb 32                            jmp    0x00000aa5
+                           .data:00000a73 9a e2 07 00 ff                   lcall  $0xff00,$0x7e2
+                           .data:00000a78 be 10 07                         mov    $0x710,%si
+                           .data:00000a7b fe 04                            incb   (%si)
+                           .data:00000a7d 80 3c 02                         cmpb   $0x2,(%si)
+                           .data:00000a80 75 23                            jne    0x00000aa5
+                           .data:00000a82 33 c0                            xor    %ax,%ax
+                           .data:00000a84 88 04                            mov    %al,(%si)
+                           .data:00000a86 bf 12 07                         mov    $0x712,%di
+                           .data:00000a89 80 3d 2c                         cmpb   $0x2c,(%di)
+                           .data:00000a8c 75 04                            jne    0x00000a92
+                           .data:00000a8e b0 00                            mov    $0x0,%al
+                           .data:00000a90 e6 15                            out    %al,$0x15
+                           .data:00000a92 80 3d 1f                         cmpb   $0x1f,(%di)
+                           .data:00000a95 73 0c                            jae    0x00000aa3
+                           .data:00000a97 8a 05                            mov    (%di),%al
+                           .data:00000a99 9a bc 09 00 ff                   lcall  $0xff00,$0x9bc
+                           .data:00000a9e 9a 48 09 00 ff                   lcall  $0xff00,$0x948
+                           .data:00000aa3 fe 05                            incb   (%di)
+                           .data:00000aa5 bf 12 07                         mov    $0x712,%di
+                           .data:00000aa8 80 3d 6a                         cmpb   $0x6a,(%di)
+                           .data:00000aab 72 0a                            jb     0x00000ab7
+                           .data:00000aad 33 c0                            xor    %ax,%ax
+                           .data:00000aaf e7 00                            out    %ax,$0x0
+                           .data:00000ab1 be 18 07                         mov    $0x718,%si
+                           .data:00000ab4 c6 04 01                         movb   $0x1,(%si)
+                           .data:00000ab7 b0 40                            mov    $0x40,%al
+                           .data:00000ab9 e6 b6                            out    %al,$0xb6
+                           .data:00000abb 61                               popa   
+                           .data:00000abc cf                               iret   
+                           .data:00000abd ff                               (bad)  
+                           .data:00000abe ff                               (bad)  
+                           .data:00000abf ff                               (bad)  
+                           .data:00000ac0 ff                               (bad)  
+                           .data:00000ac1 ff                               (bad)  
+                           .data:00000ac2 ff                               (bad)  
+                           .data:00000ac3 ff                               (bad)  
+                           .data:00000ac4 ff                               (bad)  
+                           .data:00000ac5 ff                               (bad)  
+                           .data:00000ac6 ff                               (bad)  
+                           .data:00000ac7 ff                               (bad)  
+                           .data:00000ac8 ff                               (bad)  
+                           .data:00000ac9 ff                               (bad)  
+                           .data:00000aca ff                               (bad)  
+                           .data:00000acb ff                               (bad)  
+                           .data:00000acc ff                               (bad)  
+                           .data:00000acd ff                               (bad)  
+                           .data:00000ace ff                               (bad)  
+                           .data:00000acf ff                               (bad)  
+                           .data:00000ad0 ff                               (bad)  
+                           .data:00000ad1 ff                               (bad)  
+                           .data:00000ad2 ff                               (bad)  
+                           .data:00000ad3 ff                               (bad)  
+                           .data:00000ad4 ff                               (bad)  
+                           .data:00000ad5 ff                               (bad)  
+                           .data:00000ad6 ff                               (bad)  
+                           .data:00000ad7 ff                               (bad)  
+                           .data:00000ad8 ff                               (bad)  
+                           .data:00000ad9 ff                               (bad)  
+                           .data:00000ada ff                               (bad)  
+                           .data:00000adb ff                               (bad)  
+                           .data:00000adc ff                               (bad)  
+                           .data:00000add ff                               (bad)  
+                           .data:00000ade ff                               (bad)  
+                           .data:00000adf ff                               (bad)  
+                           .data:00000ae0 ff                               (bad)  
+                           .data:00000ae1 ff                               (bad)  
+                           .data:00000ae2 ff                               (bad)  
+                           .data:00000ae3 ff                               (bad)  
+                           .data:00000ae4 ff                               (bad)  
+                           .data:00000ae5 ff                               (bad)  
+                           .data:00000ae6 ff                               (bad)  
+                           .data:00000ae7 ff                               (bad)  
+                           .data:00000ae8 ff                               (bad)  
+                           .data:00000ae9 ff                               (bad)  
+                           .data:00000aea ff                               (bad)  
+                           .data:00000aeb ff                               (bad)  
+                           .data:00000aec ff                               (bad)  
+                           .data:00000aed ff                               (bad)  
+                           .data:00000aee ff                               (bad)  
+                           .data:00000aef ff                               (bad)  
+                           .data:00000af0 ff                               (bad)  
+                           .data:00000af1 ff                               (bad)  
+                           .data:00000af2 ff                               (bad)  
+                           .data:00000af3 ff                               (bad)  
+                           .data:00000af4 ff                               (bad)  
+                           .data:00000af5 ff                               (bad)  
+                           .data:00000af6 ff                               (bad)  
+                           .data:00000af7 ff                               (bad)  
+                           .data:00000af8 ff                               (bad)  
+                           .data:00000af9 ff                               (bad)  
+                           .data:00000afa ff                               (bad)  
+                           .data:00000afb ff                               (bad)  
+                           .data:00000afc ff                               (bad)  
+                           .data:00000afd ff                               (bad)  
+                           .data:00000afe ff                               (bad)  
+                           .data:00000aff ff 2b                            ljmp   *(%bp,%di)
+                           .data:00000b01 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000b03 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000b05 2b 06 05 0d                      sub    0xd05,%ax
+                           .data:00000b09 01 0c                            add    %cx,(%si)
+                           .data:00000b0b 05 0d 01                         add    $0x10d,%ax
+                           .data:00000b0e 0c 05                            or     $0x5,%al
+                           .data:00000b10 00 00                            add    %al,(%bx,%si)
+                           .data:00000b12 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000b14 01 02                            add    %ax,(%bp,%si)
+                           .data:00000b16 01 00                            add    %ax,(%bx,%si)
+                           .data:00000b18 02 00                            add    (%bx,%si),%al
+                           .data:00000b1a 0f 00 10                         lldt   (%bx,%si)
+                           .data:00000b1d 50                               push   %ax
+                           .data:00000b1e 30 50 38                         xor    %dl,0x38(%bx,%si)
+                           .data:00000b21 50                               push   %ax
+                           .data:00000b22 40                               inc    %ax
+                           .data:00000b23 50                               push   %ax
+                           .data:00000b24 50                               push   %ax
+                           .data:00000b25 50                               push   %ax
+                           .data:00000b26 60                               pusha  
+                           .data:00000b27 50                               push   %ax
+                           .data:00000b28 78 60                            js     0x00000b8a
+                           .data:00000b2a 8c 08                            mov    %cs,(%bx,%si)
+                           .data:00000b2c 44                               inc    %sp
+                           .data:00000b2d 09 8c 09 ca                      or     %cx,-0x35f7(%si)
+                           .data:00000b31 09 0e 0a 8e                      or     %cx,-0x71f6
+                           .data:00000b35 0a 02                            or     (%bp,%si),%al
+                           .data:00000b37 0b da                            or     %dx,%bx
+                           .data:00000b39 0b d6                            or     %si,%dx
+                           .data:00000b3b 08 96 0a 16                      or     %dl,0x160a(%bp)
+                           .data:00000b3f 0b 68 00                         or     0x0(%bx,%si),%bp
+                           .data:00000b42 6d                               insw   (%dx),%es:(%di)
+                           .data:00000b43 00 76 00                         add    %dh,0x0(%bp)
+                           .data:00000b46 7b 00                            jnp    0x00000b48
+                           .data:00000b48 81 00 85 00                      addw   $0x85,(%bx,%si)
+                           .data:00000b4c 89 00                            mov    %ax,(%bx,%si)
+                           .data:00000b4e 93                               xchg   %ax,%bx
+                           .data:00000b4f 00 96 00 a7                      add    %dl,-0x5900(%bp)
+                           .data:00000b53 00 bf 00 80                      add    %bh,-0x8000(%bx)
+                           .data:00000b57 08 80 09 c0                      or     %al,-0x3ff7(%bx,%si)
+                           .data:00000b5b 09 00                            or     %ax,(%bx,%si)
+                           .data:00000b5d 0a 80 0a 00                      or     0xa(%bx,%si),%al
+                           .data:00000b61 0b c0                            or     %ax,%ax
+                           .data:00000b63 0b c0                            or     %ax,%ax
+                           .data:00000b65 08 40 09                         or     %al,0x9(%bx,%si)
+                           .data:00000b68 18 0b                            sbb    %cl,(%bp,%di)
+                           .data:00000b6a 17                               pop    %ss
+                           .data:00000b6b 0f 00 0c                         str    (%si)
+                           .data:00000b6e 13 1c                            adc    (%si),%bx
+                           .data:00000b70 1e                               push   %ds
+                           .data:00000b71 12 0e 0b 23                      adc    0x230b,%cl
+                           .data:00000b75 00 23                            add    %ah,(%bp,%di)
+                           .data:00000b77 0f 0b                            ud2    
+                           .data:00000b79 1c 00                            sbb    $0x0,%al
+                           .data:00000b7b 17                               pop    %ss
+                           .data:00000b7c 19 18                            sbb    %bx,(%bx,%si)
+                           .data:00000b7e 1e                               push   %ds
+                           .data:00000b7f 12 00                            adc    (%bx,%si),%al
+                           .data:00000b81 0e                               push   %cs
+                           .data:00000b82 0b 23                            or     (%bp,%di),%sp
+                           .data:00000b84 00 1d                            add    %bl,(%di)
+                           .data:00000b86 0f 22                            (bad)  
+                           .data:00000b88 00 0c                            add    %cl,(%si)
+                           .data:00000b8a 16                               push   %ss
+                           .data:00000b8b 19 19                            sbb    %bx,(%bx,%di)
+                           .data:00000b8d 0e                               push   %cs
+                           .data:00000b8e 1e                               push   %ds
+                           .data:00000b8f 23 1a                            and    (%bp,%si),%bx
+                           .data:00000b91 0f 00 19                         ltr    (%bx,%di)
+                           .data:00000b94 15 00 2b                         adc    $0x2b00,%ax
+                           .data:00000b97 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000b99 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000b9b 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000b9d 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000b9f 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000ba1 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000ba3 2b 2b                            sub    (%bp,%di),%bp
+                           .data:00000ba5 2b 00                            sub    (%bx,%si),%ax
+                           .data:00000ba7 29 9f 9f 9f                      sub    %bx,-0x6061(%bx)
+                           .data:00000bab 9f                               lahf   
+                           .data:00000bac 9f                               lahf   
+                           .data:00000bad 00 00                            add    %al,(%bx,%si)
+                           .data:00000baf 17                               pop    %ss
+                           .data:00000bb0 0b 16 0f 9f                      or     -0x60f1,%dx
+                           .data:00000bb4 9f                               lahf   
+                           .data:00000bb5 00 00                            add    %al,(%bx,%si)
+                           .data:00000bb7 10 0f                            adc    %cl,(%bx)
+                           .data:00000bb9 17                               pop    %ss
+                           .data:00000bba 0b 16 0f 00                      or     0xf,%dx
+                           .data:00000bbe 00 29                            add    %ch,(%bx,%di)
+                           .data:00000bc0 9f                               lahf   
+                           .data:00000bc1 00 00                            add    %al,(%bx,%si)
+                           .data:00000bc3 0b 9f 00 00                      or     0x0(%bx),%bx
+                           .data:00000bc7 0c 9f                            or     $0x9f,%al
+                           .data:00000bc9 00 00                            add    %al,(%bx,%si)
+                           .data:00000bcb 19 9f 00 00                      sbb    %bx,0x0(%bx)
+                           .data:00000bcf 0b 0c                            or     (%si),%cx
+                           .data:00000bd1 00 00                            add    %al,(%bx,%si)
+                           .data:00000bd3 00 00                            add    %al,(%bx,%si)
+                           .data:00000bd5 ff                               (bad)  
+                           .data:00000bd6 ee                               out    %al,(%dx)
+                           .data:00000bd7 dd cc                            (bad)  
+                           .data:00000bd9 bb aa 99                         mov    $0x99aa,%bx
+                           .data:00000bdc 88 77 66                         mov    %dh,0x66(%bx)
+                           .data:00000bdf 55                               push   %bp
+                           .data:00000be0 44                               inc    %sp
+                           .data:00000be1 33 22                            xor    (%bp,%si),%sp
+                           .data:00000be3 11 00                            adc    %ax,(%bx,%si)
+                           .data:00000be5 ff                               (bad)  
+                           .data:00000be6 ee                               out    %al,(%dx)
+                           .data:00000be7 dd cc                            (bad)  
+                           .data:00000be9 bb aa 99                         mov    $0x99aa,%bx
+                           .data:00000bec 88 77 66                         mov    %dh,0x66(%bx)
+                           .data:00000bef 55                               push   %bp
+                           .data:00000bf0 44                               inc    %sp
+                           .data:00000bf1 33 22                            xor    (%bp,%si),%sp
+                           .data:00000bf3 11 00                            adc    %ax,(%bx,%si)
+                           .data:00000bf5 93                               xchg   %ax,%bx
+                           .data:00000bf6 07                               pop    %es
+                           .data:00000bf7 f0 99                            lock cwtd 
+                           .data:00000bf9 07                               pop    %es
+                           .data:00000bfa f0 9f                            lock lahf 
+                           .data:00000bfc 07                               pop    %es
+                           .data:00000bfd f0 a4                            lock movsb %ds:(%si),%es:(%di)
+                           .data:00000bff 07                               pop    %es
+                           .data:00000c00 f0 a9 07 f0                      lock test $0xf007,%ax
+                           .data:00000c04 ae                               scas   %es:(%di),%al
+                           .data:00000c05 07                               pop    %es
+                           .data:00000c06 f0 b3 07                         lock mov $0x7,%bl
+                           .data:00000c09 f0 b7 07                         lock mov $0x7,%bh
+                           .data:00000c0c f0 bb 07 f0                      lock mov $0xf007,%bx
+                           .data:00000c10 bf 07 e1                         mov    $0xe107,%di
+                           .data:00000c13 c3                               ret    
+                           .data:00000c14 07                               pop    %es
+                           .data:00000c15 e1 c6                            loope  0x00000bdd
+                           .data:00000c17 07                               pop    %es
+                           .data:00000c18 e1 c9                            loope  0x00000be3
+                           .data:00000c1a 07                               pop    %es
+                           .data:00000c1b d2 cd                            ror    %cl,%ch
+                           .data:00000c1d 07                               pop    %es
+                           .data:00000c1e c3                               ret    
+                           .data:00000c1f cf                               iret   
+                           .data:00000c20 07                               pop    %es
+                           .data:00000c21 b4 d2                            mov    $0xd2,%ah
+                           .data:00000c23 07                               pop    %es
+                           .data:00000c24 a5                               movsw  %ds:(%si),%es:(%di)
+                           .data:00000c25 d5 07                            aad    $0x7
+                           .data:00000c27 96                               xchg   %ax,%si
+                           .data:00000c28 d7                               xlat   %ds:(%bx)
+                           .data:00000c29 07                               pop    %es
+                           .data:00000c2a 87 d9                            xchg   %bx,%cx
+                           .data:00000c2c 07                               pop    %es
+                           .data:00000c2d 78 dc                            js     0x00000c0b
+                           .data:00000c2f 07                               pop    %es
+                           .data:00000c30 69 de 07 5a                      imul   $0x5a07,%si,%bx
+                           .data:00000c34 e0 07                            loopne 0x00000c3d
+                           .data:00000c36 4b                               dec    %bx
+                           .data:00000c37 e1 07                            loope  0x00000c40
+                           .data:00000c39 3c e3                            cmp    $0xe3,%al
+                           .data:00000c3b 07                               pop    %es
+                           .data:00000c3c 2d e5 07                         sub    $0x7e5,%ax
+                           .data:00000c3f 1e                               push   %ds
+                           .data:00000c40 e6 07                            out    %al,$0x7
+                           .data:00000c42 0f e6                            (bad)  
+                           .data:00000c44 07                               pop    %es
+                           .data:00000c45 0f e6                            (bad)  
+                           .data:00000c47 07                               pop    %es
+                           .data:00000c48 0e                               push   %cs
+                           .data:00000c49 e6 07                            out    %al,$0x7
+                           .data:00000c4b 0d e6 07                         or     $0x7e6,%ax
+                           .data:00000c4e 0c e6                            or     $0xe6,%al
+                           .data:00000c50 07                               pop    %es
+                           .data:00000c51 0b e6                            or     %si,%sp
+                           .data:00000c53 07                               pop    %es
+                           .data:00000c54 0a e6                            or     %dh,%ah
+                           .data:00000c56 07                               pop    %es
+                           .data:00000c57 09 e6                            or     %sp,%si
+                           .data:00000c59 07                               pop    %es
+                           .data:00000c5a 08 e6                            or     %ah,%dh
+                           .data:00000c5c 07                               pop    %es
+                           .data:00000c5d 07                               pop    %es
+                           .data:00000c5e e6 07                            out    %al,$0x7
+                           .data:00000c60 06                               push   %es
+                           .data:00000c61 e6 07                            out    %al,$0x7
+                           .data:00000c63 05 e6 07                         add    $0x7e6,%ax
+                           .data:00000c66 04 e6                            add    $0xe6,%al
+                           .data:00000c68 07                               pop    %es
+                           .data:00000c69 03 e6                            add    %si,%sp
+                           .data:00000c6b 07                               pop    %es
+                           .data:00000c6c 02 e6                            add    %dh,%ah
+                           .data:00000c6e 07                               pop    %es
+                           .data:00000c6f 01 e6                            add    %sp,%si
+                           .data:00000c71 07                               pop    %es
+                           .data:00000c72 00 2e 0c 2d                      add    %ch,0x2d0c
+                           .data:00000c76 0c 2d                            or     $0x2d,%al
+                           .data:00000c78 0c 2d                            or     $0x2d,%al
+                           .data:00000c7a 0c 2d                            or     $0x2d,%al
+                           .data:00000c7c 0c 2e                            or     $0x2e,%al
+                           .data:00000c7e 4c                               dec    %sp
+                           .data:00000c7f 2f                               das    
+                           .data:00000c80 0c 30                            or     $0x30,%al
+                           .data:00000c82 0c 31                            or     $0x31,%al
+                           .data:00000c84 0c 32                            or     $0x32,%al
+                           .data:00000c86 0c 33                            or     $0x33,%al
+                           .data:00000c88 0c 2f                            or     $0x2f,%al
+                           .data:00000c8a 4c                               dec    %sp
+                           .data:00000c8b 34 0c                            xor    $0xc,%al
+                           .data:00000c8d 35 0c 36                         xor    $0x360c,%ax
+                           .data:00000c90 0c 37                            or     $0x37,%al
+                           .data:00000c92 0c 38                            or     $0x38,%al
+                           .data:00000c94 0c 34                            or     $0x34,%al
+                           .data:00000c96 4c                               dec    %sp
+                           .data:00000c97 2f                               das    
+                           .data:00000c98 0c 39                            or     $0x39,%al
+                           .data:00000c9a 0c 3a                            or     $0x3a,%al
+                           .data:00000c9c 0c 32                            or     $0x32,%al
+                           .data:00000c9e 0c 2f                            or     $0x2f,%al
+                           .data:00000ca0 4c                               dec    %sp
+                           .data:00000ca1 2d 0c 34                         sub    $0x340c,%ax
+                           .data:00000ca4 0c 3b                            or     $0x3b,%al
+                           .data:00000ca6 0c 3c                            or     $0x3c,%al
+                           .data:00000ca8 0c 37                            or     $0x37,%al
+                           .data:00000caa 0c 34                            or     $0x34,%al
+                           .data:00000cac 4c                               dec    %sp
+                           .data:00000cad 2d 0c 2e                         sub    $0x2e0c,%ax
+                           .data:00000cb0 8c 2d                            mov    %gs,(%di)
+                           .data:00000cb2 0c 2d                            or     $0x2d,%al
+                           .data:00000cb4 0c 2d                            or     $0x2d,%al
+                           .data:00000cb6 0c 2d                            or     $0x2d,%al
+                           .data:00000cb8 0c 2e                            or     $0x2e,%al
+                           .data:00000cba cc                               int3   
+                           .data:00000cbb 6b 4c 71 0c                      imul   $0xc,0x71(%si),%cx
+                           .data:00000cbf 6c                               insb   (%dx),%es:(%di)
+                           .data:00000cc0 0c 71                            or     $0x71,%al
+                           .data:00000cc2 0c 6c                            or     $0x6c,%al
+                           .data:00000cc4 0c 6b                            or     $0x6b,%al
+                           .data:00000cc6 0c 6a                            or     $0x6a,%al
+                           .data:00000cc8 0c 78                            or     $0x78,%al
+                           .data:00000cca 0c 76                            or     $0x76,%al
+                           .data:00000ccc 0c 72                            or     $0x72,%al
+                           .data:00000cce 0c 6d                            or     $0x6d,%al
+                           .data:00000cd0 0c 6a                            or     $0x6a,%al
+                           .data:00000cd2 0c 6a                            or     $0x6a,%al
+                           .data:00000cd4 0c 79                            or     $0x79,%al
+                           .data:00000cd6 0c 77                            or     $0x77,%al
+                           .data:00000cd8 0c 73                            or     $0x73,%al
+                           .data:00000cda 0c 6e                            or     $0x6e,%al
+                           .data:00000cdc 0c 6a                            or     $0x6a,%al
+                           .data:00000cde 0c 6a                            or     $0x6a,%al
+                           .data:00000ce0 0c 74                            or     $0x74,%al
+                           .data:00000ce2 0c 6f                            or     $0x6f,%al
+                           .data:00000ce4 0c 74                            or     $0x74,%al
+                           .data:00000ce6 0c 6f                            or     $0x6f,%al
+                           .data:00000ce8 0c 6a                            or     $0x6a,%al
+                           .data:00000cea 0c 6a                            or     $0x6a,%al
+                           .data:00000cec 0c 71                            or     $0x71,%al
+                           .data:00000cee 8c 6c 8c                         mov    %gs,-0x74(%si)
+                           .data:00000cf1 75 0c                            jne    0x00000cff
+                           .data:00000cf3 70 0c                            jo     0x00000d01
+                           .data:00000cf5 6a 0c                            push   $0xc
+                           .data:00000cf7 6b cc 6a                         imul   $0x6a,%sp,%cx
+                           .data:00000cfa 0c 6a                            or     $0x6a,%al
+                           .data:00000cfc 0c 71                            or     $0x71,%al
+                           .data:00000cfe 8c 6c 8c                         mov    %gs,-0x74(%si)
+                           .data:00000d01 6b 8c 65 66 66                   imul   $0x66,0x6665(%si),%cx
+                           .data:00000d06 66 66 66 54                      data32 data32 push %esp
+                           .data:00000d0a 66 66 66 66 66 43                data32 data32 data32 data32 inc %ebx
+                           .data:00000d10 65 66 66 66 66 32 54 66          data32 data32 data32 data32 xor %gs:0x66(%si),%dl
+                           .data:00000d18 66 66 66 21 43 65                data32 data32 and %eax,0x65(%bp,%di)
+                           .data:00000d1e 66 66 66 10 32                   data32 data32 data32 adc %dh,(%bp,%si)
+                           .data:00000d23 54                               push   %sp
+                           .data:00000d24 66 66 66 01 21                   data32 data32 add %esp,(%bx,%di)
+                           .data:00000d29 43                               inc    %bx
+                           .data:00000d2a 65 66 66 12 10                   data32 data32 adc %gs:(%bx,%si),%dl
+                           .data:00000d2f 32 54 66                         xor    0x66(%si),%dl
+                           .data:00000d32 66 23 01                         and    (%bx,%di),%eax
+                           .data:00000d35 21 43 65                         and    %ax,0x65(%bp,%di)
+                           .data:00000d38 66 34 12                         data32 xor $0x12,%al
+                           .data:00000d3b 10 32                            adc    %dh,(%bp,%si)
+                           .data:00000d3d 54                               push   %sp
+                           .data:00000d3e 66 45                            inc    %ebp
+                           .data:00000d40 23 01                            and    (%bx,%di),%ax
+                           .data:00000d42 21 43 65                         and    %ax,0x65(%bp,%di)
+                           .data:00000d45 56                               push   %si
+                           .data:00000d46 34 12                            xor    $0x12,%al
+                           .data:00000d48 10 32                            adc    %dh,(%bp,%si)
+                           .data:00000d4a 64 66 45                         fs inc %ebp
+                           .data:00000d4d 23 01                            and    (%bx,%di),%ax
+                           .data:00000d4f 21 63 66                         and    %sp,0x66(%bp,%di)
+                           .data:00000d52 56                               push   %si
+                           .data:00000d53 34 12                            xor    $0x12,%al
+                           .data:00000d55 10 62 66                         adc    %ah,0x66(%bp,%si)
+                           .data:00000d58 66 45                            inc    %ebp
+                           .data:00000d5a 23 01                            and    (%bx,%di),%ax
+                           .data:00000d5c 61                               popa   
+                           .data:00000d5d 65 66 56                         gs push %esi
+                           .data:00000d60 34 12                            xor    $0x12,%al
+                           .data:00000d62 60                               pusha  
+                           .data:00000d63 54                               push   %sp
+                           .data:00000d64 66 66 45                         data32 inc %ebp
+                           .data:00000d67 23 61 43                         and    0x43(%bx,%di),%sp
+                           .data:00000d6a 65 66 56                         gs push %esi
+                           .data:00000d6d 34 62                            xor    $0x62,%al
+                           .data:00000d6f 32 54 66                         xor    0x66(%si),%dl
+                           .data:00000d72 66 45                            inc    %ebp
+                           .data:00000d74 63 21                            arpl   %sp,(%bx,%di)
+                           .data:00000d76 43                               inc    %bx
+                           .data:00000d77 65 66 56                         gs push %esi
+                           .data:00000d7a 64 10 32                         adc    %dh,%fs:(%bp,%si)
+                           .data:00000d7d 54                               push   %sp
+                           .data:00000d7e 66 66 65 00 21                   data32 data32 add %ah,%gs:(%bx,%di)
+                           .data:00000d83 43                               inc    %bx
+                           .data:00000d84 65 66 66 00 10                   data32 data32 add %dl,%gs:(%bx,%si)
+                           .data:00000d89 32 54 66                         xor    0x66(%si),%dl
+                           .data:00000d8c 66 00 00                         data32 add %al,(%bx,%si)
+                           .data:00000d8f 21 43 65                         and    %ax,0x65(%bp,%di)
+                           .data:00000d92 66 00 00                         data32 add %al,(%bx,%si)
+                           .data:00000d95 10 32                            adc    %dh,(%bp,%si)
+                           .data:00000d97 54                               push   %sp
+                           .data:00000d98 66 00 00                         data32 add %al,(%bx,%si)
+                           .data:00000d9b 00 21                            add    %ah,(%bx,%di)
+                           .data:00000d9d 43                               inc    %bx
+                           .data:00000d9e 65 00 00                         add    %al,%gs:(%bx,%si)
+                           .data:00000da1 00 10                            add    %dl,(%bx,%si)
+                           .data:00000da3 32 64 00                         xor    0x0(%si),%ah
+                           .data:00000da6 00 00                            add    %al,(%bx,%si)
+                           .data:00000da8 00 21                            add    %ah,(%bx,%di)
+                           .data:00000daa 63 00                            arpl   %ax,(%bx,%si)
+                           .data:00000dac 00 00                            add    %al,(%bx,%si)
+                           .data:00000dae 00 10                            add    %dl,(%bx,%si)
+                           .data:00000db0 62 00                            bound  %ax,(%bx,%si)
+                           .data:00000db2 00 00                            add    %al,(%bx,%si)
+                           .data:00000db4 00 00                            add    %al,(%bx,%si)
+                           .data:00000db6 61                               popa   
+                           .data:00000db7 00 00                            add    %al,(%bx,%si)
+                           .data:00000db9 00 00                            add    %al,(%bx,%si)
+                           .data:00000dbb 00 60 00                         add    %ah,0x0(%bx,%si)
+                           .data:00000dbe 00 00                            add    %al,(%bx,%si)
+                           .data:00000dc0 00 00                            add    %al,(%bx,%si)
+                           .data:00000dc2 00 00                            add    %al,(%bx,%si)
+                           .data:00000dc4 00 3e 63 67                      add    %bh,0x6763
+                           .data:00000dc8 6b 73 63 3e                      imul   $0x3e,0x63(%bp,%di),%si
+                           .data:00000dcc 00 3c                            add    %bh,(%si)
+                           .data:00000dce 0c 0c                            or     $0xc,%al
+                           .data:00000dd0 0c 0c                            or     $0xc,%al
+                           .data:00000dd2 0c 0c                            or     $0xc,%al
+                           .data:00000dd4 00 7e 03                         add    %bh,0x3(%bp)
+                           .data:00000dd7 03 3e 60 60                      add    0x6060,%di
+                           .data:00000ddb 7f 00                            jg     0x00000ddd
+                           .data:00000ddd 7e 03                            jle    0x00000de2
+                           .data:00000ddf 03 3e 03 03                      add    0x303,%di
+                           .data:00000de3 7e 00                            jle    0x00000de5
+                           .data:00000de5 1e                               push   %ds
+                           .data:00000de6 36 66 66 66 7f 06                ss data32 data32 data32 jg 0x00000df2
+                           .data:00000dec 00 7f 60                         add    %bh,0x60(%bx)
+                           .data:00000def 60                               pusha  
+                           .data:00000df0 7e 03                            jle    0x00000df5
+                           .data:00000df2 03 7e 00                         add    0x0(%bp),%di
+                           .data:00000df5 3e 60                            ds pusha 
+                           .data:00000df7 60                               pusha  
+                           .data:00000df8 7e 63                            jle    0x00000e5d
+                           .data:00000dfa 63 3e 00 7f                      arpl   %di,0x7f00
+                           .data:00000dfe 63 06 0c 18                      arpl   %ax,0x180c
+                           .data:00000e02 18 18                            sbb    %bl,(%bx,%si)
+                           .data:00000e04 00 3e 63 63                      add    %bh,0x6363
+                           .data:00000e08 3e 63 63 3e                      arpl   %sp,%ds:0x3e(%bp,%di)
+                           .data:00000e0c 00 3e 63 63                      add    %bh,0x6363
+                           .data:00000e10 3f                               aas    
+                           .data:00000e11 03 03                            add    (%bp,%di),%ax
+                           .data:00000e13 3e 00 1c                         add    %bl,%ds:(%si)
+                           .data:00000e16 36 63 63 7f                      arpl   %sp,%ss:0x7f(%bp,%di)
+                           .data:00000e1a 63 63 00                         arpl   %sp,0x0(%bp,%di)
+                           .data:00000e1d 7e 63                            jle    0x00000e82
+                           .data:00000e1f 63 7e 63                         arpl   %di,0x63(%bp)
+                           .data:00000e22 63 7e 00                         arpl   %di,0x0(%bp)
+                           .data:00000e25 3e 63 60 60                      arpl   %sp,%ds:0x60(%bx,%si)
+                           .data:00000e29 60                               pusha  
+                           .data:00000e2a 63 3e 00 7c                      arpl   %di,0x7c00
+                           .data:00000e2e 66 63 63 63                      data32 arpl %sp,0x63(%bp,%di)
+                           .data:00000e32 66 7c 00                         data32 jl 0x00000e35
+                           .data:00000e35 7f 60                            jg     0x00000e97
+                           .data:00000e37 60                               pusha  
+                           .data:00000e38 7e 60                            jle    0x00000e9a
+                           .data:00000e3a 60                               pusha  
+                           .data:00000e3b 7f 00                            jg     0x00000e3d
+                           .data:00000e3d 7f 60                            jg     0x00000e9f
+                           .data:00000e3f 60                               pusha  
+                           .data:00000e40 7e 60                            jle    0x00000ea2
+                           .data:00000e42 60                               pusha  
+                           .data:00000e43 60                               pusha  
+                           .data:00000e44 00 3f                            add    %bh,(%bx)
+                           .data:00000e46 60                               pusha  
+                           .data:00000e47 60                               pusha  
+                           .data:00000e48 67 63 63 3e                      arpl   %sp,0x3e(%ebx)
+                           .data:00000e4c 00 63 63                         add    %ah,0x63(%bp,%di)
+                           .data:00000e4f 63 7f 63                         arpl   %di,0x63(%bx)
+                           .data:00000e52 63 63 00                         arpl   %sp,0x0(%bp,%di)
+                           .data:00000e55 3c 18                            cmp    $0x18,%al
+                           .data:00000e57 18 18                            sbb    %bl,(%bx,%si)
+                           .data:00000e59 18 18                            sbb    %bl,(%bx,%si)
+                           .data:00000e5b 3c 00                            cmp    $0x0,%al
+                           .data:00000e5d 0f 03 03                         lsl    (%bp,%di),%ax
+                           .data:00000e60 63 63 63                         arpl   %sp,0x63(%bp,%di)
+                           .data:00000e63 3e 00 63 66                      add    %ah,%ds:0x66(%bp,%di)
+                           .data:00000e67 6c                               insb   (%dx),%es:(%di)
+                           .data:00000e68 78 6c                            js     0x00000ed6
+                           .data:00000e6a 66 63 00                         data32 arpl %ax,(%bx,%si)
+                           .data:00000e6d 60                               pusha  
+                           .data:00000e6e 60                               pusha  
+                           .data:00000e6f 60                               pusha  
+                           .data:00000e70 60                               pusha  
+                           .data:00000e71 60                               pusha  
+                           .data:00000e72 60                               pusha  
+                           .data:00000e73 7f 00                            jg     0x00000e75
+                           .data:00000e75 63 77 7f                         arpl   %si,0x7f(%bx)
+                           .data:00000e78 6b 63 63 63                      imul   $0x63,0x63(%bp,%di),%sp
+                           .data:00000e7c 00 63 73                         add    %ah,0x73(%bp,%di)
+                           .data:00000e7f 7b 6f                            jnp    0x00000ef0
+                           .data:00000e81 67 63 63 00                      arpl   %sp,0x0(%ebx)
+                           .data:00000e85 3e 63 63 63                      arpl   %sp,%ds:0x63(%bp,%di)
+                           .data:00000e89 63 63 3e                         arpl   %sp,0x3e(%bp,%di)
+                           .data:00000e8c 00 7e 63                         add    %bh,0x63(%bp)
+                           .data:00000e8f 63 7e 60                         arpl   %di,0x60(%bp)
+                           .data:00000e92 60                               pusha  
+                           .data:00000e93 60                               pusha  
+                           .data:00000e94 00 3e 63 63                      add    %bh,0x6363
+                           .data:00000e98 6b 6f 67 3e                      imul   $0x3e,0x67(%bx),%bp
+                           .data:00000e9c 00 7e 63                         add    %bh,0x63(%bp)
+                           .data:00000e9f 63 7e 6c                         arpl   %di,0x6c(%bp)
+                           .data:00000ea2 66 63 00                         data32 arpl %ax,(%bx,%si)
+                           .data:00000ea5 3e 63 60 3e                      arpl   %sp,%ds:0x3e(%bx,%si)
+                           .data:00000ea9 03 63 3e                         add    0x3e(%bp,%di),%sp
+                           .data:00000eac 00 7e 18                         add    %bh,0x18(%bp)
+                           .data:00000eaf 18 18                            sbb    %bl,(%bx,%si)
+                           .data:00000eb1 18 18                            sbb    %bl,(%bx,%si)
+                           .data:00000eb3 18 00                            sbb    %al,(%bx,%si)
+                           .data:00000eb5 63 63 63                         arpl   %sp,0x63(%bp,%di)
+                           .data:00000eb8 63 63 63                         arpl   %sp,0x63(%bp,%di)
+                           .data:00000ebb 3e 00 63 63                      add    %ah,%ds:0x63(%bp,%di)
+                           .data:00000ebf 63 36 36 1c                      arpl   %si,0x1c36
+                           .data:00000ec3 08 00                            or     %al,(%bx,%si)
+                           .data:00000ec5 63 6b 6b                         arpl   %bp,0x6b(%bp,%di)
+                           .data:00000ec8 6b 7f 36 22                      imul   $0x22,0x36(%bx),%di
+                           .data:00000ecc 00 63 63                         add    %ah,0x63(%bp,%di)
+                           .data:00000ecf 36 1c 36                         ss sbb $0x36,%al
+                           .data:00000ed2 63 63 00                         arpl   %sp,0x0(%bp,%di)
+                           .data:00000ed5 66 66 66 3c 18                   data32 data32 data32 cmp $0x18,%al
+                           .data:00000eda 18 18                            sbb    %bl,(%bx,%si)
+                           .data:00000edc 00 7f 03                         add    %bh,0x3(%bx)
+                           .data:00000edf 06                               push   %es
+                           .data:00000ee0 0c 18                            or     $0x18,%al
+                           .data:00000ee2 30 7f 00                         xor    %bh,0x0(%bx)
+                           .data:00000ee5 22 77 7f                         and    0x7f(%bx),%dh
+                           .data:00000ee8 7f 3e                            jg     0x00000f28
+                           .data:00000eea 1c 08                            sbb    $0x8,%al
+                           .data:00000eec 00 18                            add    %bl,(%bx,%si)
+                           .data:00000eee 1c 16                            sbb    $0x16,%al
+                           .data:00000ef0 12 12                            adc    (%bp,%si),%dl
+                           .data:00000ef2 70 60                            jo     0x00000f54
+                           .data:00000ef4 00 08                            add    %cl,(%bx,%si)
+                           .data:00000ef6 08 08                            or     %cl,(%bx,%si)
+                           .data:00000ef8 7f 08                            jg     0x00000f02
+                           .data:00000efa 08 08                            or     %cl,(%bx,%si)
+                           .data:00000efc 00 00                            add    %al,(%bx,%si)
+                           .data:00000efe 00 00                            add    %al,(%bx,%si)
+                           .data:00000f00 7f 00                            jg     0x00000f02
+                           .data:00000f02 00 00                            add    %al,(%bx,%si)
+                           .data:00000f04 00 3c                            add    %bh,(%si)
+                           .data:00000f06 66 66 0c 18                      data32 data32 or $0x18,%al
+                           .data:00000f0a 00 18                            add    %bl,(%bx,%si)
+                           .data:00000f0c 00 00                            add    %al,(%bx,%si)
+                           .data:00000f0e 00 00                            add    %al,(%bx,%si)
+                           .data:00000f10 00 00                            add    %al,(%bx,%si)
+                           .data:00000f12 60                               pusha  
+                           .data:00000f13 60                               pusha  
+                           .data:00000f14 00 7f 00                         add    %bh,0x0(%bx)
+                           .data:00000f17 00 00                            add    %al,(%bx,%si)
+                           .data:00000f19 00 00                            add    %al,(%bx,%si)
+                           .data:00000f1b 00 00                            add    %al,(%bx,%si)
+                           .data:00000f1d 10 18                            adc    %bl,(%bx,%si)
+                           .data:00000f1f 1c 1e                            sbb    $0x1e,%al
+                           .data:00000f21 1c 18                            sbb    $0x18,%al
+                           .data:00000f23 10 00                            adc    %al,(%bx,%si)
+                           .data:00000f25 ff                               (bad)  
+                           .data:00000f26 ff                               (bad)  
+                           .data:00000f27 ff                               (bad)  
+                           .data:00000f28 ff                               (bad)  
+                           .data:00000f29 ff                               (bad)  
+                           .data:00000f2a ff                               (bad)  
+                           .data:00000f2b ff                               (bad)  
+                           .data:00000f2c ff 0f                            decw   (%bx)
+                           .data:00000f2e 3f                               aas    
+                           .data:00000f2f 7f 7f                            jg     0x00000fb0
+                           .data:00000f31 ff                               (bad)  
+                           .data:00000f32 ff                               (bad)  
+                           .data:00000f33 ff                               (bad)  
+                           .data:00000f34 ff                               (bad)  
+                           .data:00000f35 ff                               (bad)  
+                           .data:00000f36 f8                               clc    
+                           .data:00000f37 f8                               clc    
+                           .data:00000f38 f8                               clc    
+                           .data:00000f39 f8                               clc    
+                           .data:00000f3a f8                               clc    
+                           .data:00000f3b f8                               clc    
+                           .data:00000f3c f8                               clc    
+                           .data:00000f3d ff 01                            incw   (%bx,%di)
+                           .data:00000f3f 00 00                            add    %al,(%bx,%si)
+                           .data:00000f41 f8                               clc    
+                           .data:00000f42 fc                               cld    
+                           .data:00000f43 f8                               clc    
+                           .data:00000f44 c0 ff fc                         sar    $0xfc,%bh
+                           .data:00000f47 fc                               cld    
+                           .data:00000f48 fc                               cld    
+                           .data:00000f49 78 78                            js     0x00000fc3
+                           .data:00000f4b f8                               clc    
+                           .data:00000f4c f0 ff 1f                         lock lcall *(%bx)
+                           .data:00000f4f 1f                               pop    %ds
+                           .data:00000f50 1f                               pop    %ds
+                           .data:00000f51 0f 8f 8f 87                      jg     0x000096e4
+                           .data:00000f55 ff 0f                            decw   (%bx)
+                           .data:00000f57 0f 07                            sysret 
+                           .data:00000f59 07                               pop    %es
+                           .data:00000f5a 03 03                            add    (%bp,%di),%ax
+                           .data:00000f5c 01 f8                            add    %di,%ax
+                           .data:00000f5e f8                               clc    
+                           .data:00000f5f f8                               clc    
+                           .data:00000f60 f8                               clc    
+                           .data:00000f61 f8                               clc    
+                           .data:00000f62 f8                               clc    
+                           .data:00000f63 f8                               clc    
+                           .data:00000f64 f8                               clc    
+                           .data:00000f65 c1 c0 f8                         rol    $0xf8,%ax
+                           .data:00000f68 fc                               cld    
+                           .data:00000f69 f8                               clc    
+                           .data:00000f6a 00 00                            add    %al,(%bx,%si)
+                           .data:00000f6c 01 f1                            add    %si,%cx
+                           .data:00000f6e f1                               icebp  
+                           .data:00000f6f 61                               popa   
+                           .data:00000f70 63 63 40                         arpl   %sp,0x40(%bp,%di)
+                           .data:00000f73 c0 c0 c7                         rol    $0xc7,%al
+                           .data:00000f76 c7 c3 e3 e3                      mov    $0xe3e3,%bx
+                           .data:00000f7a 21 31                            and    %si,(%bx,%di)
+                           .data:00000f7c 31 11                            xor    %dx,(%bx,%di)
+                           .data:00000f7e 10 18                            adc    %bl,(%bx,%si)
+                           .data:00000f80 18 1c                            sbb    %bl,(%si)
+                           .data:00000f82 1c 1e                            sbb    $0x1e,%al
+                           .data:00000f84 1e                               push   %ds
+                           .data:00000f85 ff 0f                            decw   (%bx)
+                           .data:00000f87 03 01                            add    (%bx,%di),%ax
+                           .data:00000f89 f0 f8                            lock clc 
+                           .data:00000f8b fc                               cld    
+                           .data:00000f8c fc                               cld    
+                           .data:00000f8d ff                               (bad)  
+                           .data:00000f8e fc                               cld    
+                           .data:00000f8f fc                               cld    
+                           .data:00000f90 fc                               cld    
+                           .data:00000f91 f8                               clc    
+                           .data:00000f92 f8                               clc    
+                           .data:00000f93 78 70                            js     0x00001005
+                           .data:00000f95 fc                               cld    
+                           .data:00000f96 fc                               cld    
+                           .data:00000f97 fc                               cld    
+                           .data:00000f98 fc                               cld    
+                           .data:00000f99 f8                               clc    
+                           .data:00000f9a 00 01                            add    %al,(%bx,%di)
+                           .data:00000f9c 07                               pop    %es
+                           .data:00000f9d 71 71                            jno    0x00001010
+                           .data:00000f9f 61                               popa   
+                           .data:00000fa0 63 e3                            arpl   %sp,%bx
+                           .data:00000fa2 c0 c0 c0                         rol    $0xc0,%al
+                           .data:00000fa5 ff                               (bad)  
+                           .data:00000fa6 ff                               (bad)  
+                           .data:00000fa7 ff                               (bad)  
+                           .data:00000fa8 ff                               (bad)  
+                           .data:00000fa9 ff                               (bad)  
+                           .data:00000faa ff                               (bad)  
+                           .data:00000fab ff                               (bad)  
+                           .data:00000fac ff                               (bad)  
+                           .data:00000fad ff                               (bad)  
+                           .data:00000fae ff                               (bad)  
+                           .data:00000faf ff                               (bad)  
+                           .data:00000fb0 ff                               (bad)  
+                           .data:00000fb1 ff                               (bad)  
+                           .data:00000fb2 ff                               (bad)  
+                           .data:00000fb3 ff                               (bad)  
+                           .data:00000fb4 ff                               (bad)  
+                           .data:00000fb5 ff                               (bad)  
+                           .data:00000fb6 ff                               (bad)  
+                           .data:00000fb7 ff                               (bad)  
+                           .data:00000fb8 ff                               (bad)  
+                           .data:00000fb9 ff                               (bad)  
+                           .data:00000fba ff                               (bad)  
+                           .data:00000fbb ff                               (bad)  
+                           .data:00000fbc ff                               (bad)  
+                           .data:00000fbd ff                               (bad)  
+                           .data:00000fbe ff                               (bad)  
+                           .data:00000fbf ff                               (bad)  
+                           .data:00000fc0 ff                               (bad)  
+                           .data:00000fc1 ff                               (bad)  
+                           .data:00000fc2 ff                               (bad)  
+                           .data:00000fc3 ff                               (bad)  
+                           .data:00000fc4 ff                               (bad)  
+                           .data:00000fc5 ff                               (bad)  
+                           .data:00000fc6 ff                               (bad)  
+                           .data:00000fc7 ff                               (bad)  
+                           .data:00000fc8 ff                               (bad)  
+                           .data:00000fc9 ff                               (bad)  
+                           .data:00000fca ff                               (bad)  
+                           .data:00000fcb ff                               (bad)  
+                           .data:00000fcc ff                               (bad)  
+                           .data:00000fcd ff                               (bad)  
+                           .data:00000fce ff                               (bad)  
+                           .data:00000fcf ff                               (bad)  
+                           .data:00000fd0 ff                               (bad)  
+                           .data:00000fd1 ff                               (bad)  
+                           .data:00000fd2 ff                               (bad)  
+                           .data:00000fd3 ff                               (bad)  
+                           .data:00000fd4 ff                               (bad)  
+                           .data:00000fd5 ff                               (bad)  
+                           .data:00000fd6 ff                               (bad)  
+                           .data:00000fd7 ff                               (bad)  
+                           .data:00000fd8 ff                               (bad)  
+                           .data:00000fd9 ff                               (bad)  
+                           .data:00000fda ff                               (bad)  
+                           .data:00000fdb ff                               (bad)  
+                           .data:00000fdc ff                               (bad)  
+                           .data:00000fdd ff                               (bad)  
+                           .data:00000fde ff                               (bad)  
+                           .data:00000fdf ff                               (bad)  
+                           .data:00000fe0 ff                               (bad)  
+                           .data:00000fe1 ff                               (bad)  
+                           .data:00000fe2 ff                               (bad)  
+                           .data:00000fe3 ff                               (bad)  
+                           .data:00000fe4 ff                               (bad)  
+                           .data:00000fe5 ff                               (bad)  
+                           .data:00000fe6 ff                               (bad)  
+                           .data:00000fe7 ff                               (bad)  
+                           .data:00000fe8 ff                               (bad)  
+                           .data:00000fe9 ff                               (bad)  
+                           .data:00000fea ff                               (bad)  
+                           .data:00000feb ff                               (bad)  
+                           .data:00000fec ff                               (bad)  
+                           .data:00000fed ff                               (bad)  
+                           .data:00000fee ff                               (bad)  
+                           .data:00000fef ff                               (bad)  
+                           .data:00000ff0 ea 00 00 00 ff                   ljmp   $0xff00,$0x0
+                           .data:00000ff5 ff                               (bad)  
+                           .data:00000ff6 ff                               (bad)  
+                           .data:00000ff7 ff                               (bad)  
+                           .data:00000ff8 ff                               (bad)  
+                           .data:00000ff9 ff                               (bad)  
+                           .data:00000ffa ff                               (bad)  
+                           .data:00000ffb ff                               (bad)  
+                           .data:00000ffc ff                               (bad)  
+                           .data:00000ffd ff                               (bad)  
+                           .data:00000ffe ff                               (bad)  
+                           .data:00000fff ff                               .byte 0xff
