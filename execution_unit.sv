@@ -796,6 +796,10 @@ module execution_unit
                 end
                 else if(micro_mov_dst == MICRO_MOV_ADD)
                 begin
+                    // @todo, @important: Add segment! Probably need an
+                    // additional register as a target of MICRO_MOV_ADD, and
+                    // when running a bus command, possibly add that register
+                    // to the bus_address.
                     bus_address <= {4'd0, mov_data};
                     mov_dst_size <= 1;
                 end
@@ -914,6 +918,10 @@ module execution_unit
                     // Bus operation
                     3'b110:
                     begin
+                        // @todo, @important: Add segment! Probably need an
+                        // additional register as a target of MICRO_MOV_ADD, and
+                        // when running a bus command, possibly add that register
+                        // to the bus_address.
                         read_write_wait <= 1;
 
                         if(micro_bus_op == MICRO_BUS_OP_IO_WRITE)
@@ -1139,11 +1147,6 @@ module execution_unit
                         begin
                         end
 
-                        // short jump
-                        3'b000, 3'b100:
-                        begin
-                        end
-
                         // long jump
                         3'b101:
                         begin
@@ -1220,7 +1223,12 @@ module execution_unit
                         begin
                         end
 
-                        // long call
+                        // short jump
+                        3'b000, 3'b100:
+                        begin
+                        end
+
+                        // long call (@note: Will probably not implement)
                         3'b111:
                         begin
                         end
