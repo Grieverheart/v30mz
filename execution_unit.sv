@@ -244,10 +244,24 @@ module execution_unit
         MICRO_MISC_OP_B_SUSP  = 3'h1;
 
     localparam [1:0]
-        MICRO_BUS_OP_MEM_READ  = 2'h0,
-        MICRO_BUS_OP_MEM_WRITE = 2'h1,
-        MICRO_BUS_OP_IO_READ   = 2'h2,
-        MICRO_BUS_OP_IO_WRITE  = 2'h3;
+        MICRO_BUS_MEM_READ  = 2'h0,
+        MICRO_BUS_MEM_WRITE = 2'h1,
+        MICRO_BUS_IO_READ   = 2'h2,
+        MICRO_BUS_IO_WRITE  = 2'h3;
+
+    localparam [1:0]
+        MICRO_BUS_SEG_ZERO = 2'b00,
+        MICRO_BUS_SEG_SS   = 2'b01,
+        MICRO_BUS_SEG_DS0  = 2'b10,
+        MICRO_BUS_SEG_DS1  = 2'b11;
+
+    localparam [2:0]
+        MICRO_BUS_IND_ZERO = 3'd0,
+        MICRO_BUS_IND_INC1 = 3'd1,
+        MICRO_BUS_IND_INC2 = 3'd2,
+        MICRO_BUS_IND_DEC1 = 3'd3,
+        MICRO_BUS_IND_DEC2 = 3'd4,
+        MICRO_BUS_IND_BL   = 3'd5;
 
     localparam
         MICRO_ALU_IGNORE_RESULT = 1'b0,
@@ -331,10 +345,11 @@ module execution_unit
         rom[5]  = {MICRO_TYPE_MISC, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC,   MICRO_MOV_DISP};
 
         // OUT acc -> imm8
-        rom[6]  = {MICRO_TYPE_BUS, 5'd0,                 MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_AW,   MICRO_MOV_IMM};
+        // @info: Bus: ttt.uussbb (t = type, b = bus operation s = segment)
+        rom[6]  = {MICRO_TYPE_BUS, MICRO_BUS_IND_ZERO, MICRO_BUS_SEG_ZERO, MICRO_BUS_IO_WRITE, 2'b10, MICRO_MOV_AW,   MICRO_MOV_IMM};
 
         // IN acc -> imm8
-        rom[8]  = {MICRO_TYPE_BUS, 5'd0,                  MICRO_BUS_OP_IO_READ, 2'b10, MICRO_MOV_AW,   MICRO_MOV_IMM};
+        rom[8]  = {MICRO_TYPE_BUS, MICRO_BUS_IND_ZERO, MICRO_BUS_SEG_ZERO, MICRO_BUS_IO_READ, 2'b10, MICRO_MOV_AW,   MICRO_MOV_IMM};
 
         // @info: ALU: ttu??aaaaa (t = type, u = use alu result, a = alu op)
         // @note: If MICRO_ALU_USE_RESULT but src is memory, then don't write
@@ -371,10 +386,10 @@ module execution_unit
         // CALL far-proc
         // @todo: convert these bus calls to the new convention.
         rom[24] = {MICRO_TYPE_ALU, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB,  2'b00, MICRO_MOV_TWOS, MICRO_MOV_SP};
-        rom[25] = {MICRO_TYPE_BUS, 5'd0,                 MICRO_BUS_OP_MEM_WRITE, 2'b00, MICRO_MOV_PS,   MICRO_MOV_SP};
+        rom[25] = {MICRO_TYPE_BUS, MICRO_BUS_IND_ZERO, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_PS, MICRO_MOV_SP};
         rom[26] = {MICRO_TYPE_MISC, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_PS,   MICRO_MOV_IMM};
         rom[27] = {MICRO_TYPE_ALU, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB,  2'b00, MICRO_MOV_TWOS, MICRO_MOV_SP};
-        rom[28] = {MICRO_TYPE_BUS, 5'd0,                 MICRO_BUS_OP_MEM_WRITE, 2'b00, MICRO_MOV_PC,   MICRO_MOV_SP};
+        rom[28] = {MICRO_TYPE_BUS, MICRO_BUS_IND_ZERO, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_PC, MICRO_MOV_SP};
         rom[29] = {MICRO_TYPE_MISC, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_PC,   MICRO_MOV_DISP};
 
         for (int i = 0; i < 256; i++)
@@ -593,6 +608,8 @@ module execution_unit
     wire [2:0] micro_misc_op_b = micro_op[18:16];
     wire [2:0] micro_op_type   = micro_op[21:19];
     wire [1:0] micro_bus_op    = micro_op[13:12];
+    wire [1:0] micro_bus_seg   = micro_op[15:14];
+    wire [2:0] micro_bus_ind   = micro_op[18:16];
 
     wire       micro_alu_use   = micro_op[19];
     wire [4:0] micro_alu_op    = micro_op[16:12];
@@ -796,7 +813,16 @@ module execution_unit
                     // additional register as a target of MICRO_MOV_ADD, and
                     // when running a bus command, possibly add that register
                     // to the bus_address.
-                    bus_address <= {4'd0, mov_data};
+                    case(micro_bus_seg)
+                        MICRO_BUS_SEG_ZERO:
+                            bus_address <= {4'd0, mov_data};
+                        MICRO_BUS_SEG_SS:
+                            bus_address <= {segment_registers[2], 4'd0} + {4'd0, mov_data};
+                        MICRO_BUS_SEG_DS1:
+                            bus_address <= {segment_registers[0], 4'd0} + {4'd0, mov_data};
+                        MICRO_BUS_SEG_DS0:
+                            bus_address <= {segment_registers[3], 4'd0} + {4'd0, mov_data};
+                    endcase
                     mov_dst_size <= 1;
                 end
                 else if(micro_mov_dst == MICRO_MOV_ALU_A)
@@ -1021,15 +1047,15 @@ module execution_unit
                         // to the bus_address.
                         read_write_wait <= 1;
 
-                        if(micro_bus_op == MICRO_BUS_OP_IO_WRITE)
+                        if(micro_bus_op == MICRO_BUS_IO_WRITE)
                         begin
                             bus_command <= BUS_COMMAND_IO_WRITE;
                         end
-                        else if(micro_bus_op == MICRO_BUS_OP_IO_READ)
+                        else if(micro_bus_op == MICRO_BUS_IO_READ)
                         begin
                             bus_command <= BUS_COMMAND_IO_READ;
                         end
-                        else if(micro_bus_op == MICRO_BUS_OP_MEM_WRITE)
+                        else if(micro_bus_op == MICRO_BUS_MEM_WRITE)
                         begin
                             bus_command <= BUS_COMMAND_MEM_WRITE;
                         end
