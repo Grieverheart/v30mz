@@ -71,15 +71,15 @@
 // in 3 clock cycles, as I have to first do an ALU operation, then mov the
 // result to the bus_address, and then do the bus operation. Generally, the
 // push operation is described as:
-// 
+//
 //     SP <- SP - 2
 //     (SP + 1, SP) <- reg
-// 
+//
 // But if you write it as,
-// 
+//
 //     (SP - 1, SP - 2) <- reg
 //     SP <- SP - 2
-// 
+//
 // then the two micro operation are independent. The first is a move and the
 // second a decrement. I guess it's much easier to just implement in Verilog.
 // I'm thinking that we could add an option to modify the bus_address by 2^1,
@@ -97,6 +97,25 @@
 // amount (0 is nothing, n>0 is 2^(n-1)). That leaves another 3 bits that
 // could for example be used for applying this opearation to a different
 // register.
+//
+// How could REP STMW look like in microcode?
+//
+//     1. jump +1 if CW == 0 (note that we passed the STMW as a modrm byte).
+//     2. set repeat flag, push the microaddress, and jump to microaddress
+//        given by modrm byte.
+//     3. ... runs STMW (here in the last microop contains condition to run
+//        next microop based on repeat flag)
+//     4. pop microaddress and decrement CW.
+//
+// but actually I'm getting headaches trying to figure out how to design the
+// microcode.
+// 1. is a short jump.
+// 2. is a long jump with two additional ops.
+// 4. is an alu operation with the addition pop op?
+//
+// I think with microcode, you spend most of the time designing the microcode
+// instead of writing it. Let's get the shortest way to a functioning CPU and
+// we can convert stuff to microcode later.
 
 module v30mz
 (

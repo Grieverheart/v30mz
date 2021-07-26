@@ -658,6 +658,7 @@ module execution_unit
                             data_out        <= registers[0];
                             read_write_wait <= 1;
                         end
+                        // @todo: Check if the second check is superfluous.
                         else if(instruction_step == 1 && bus_command_done)
                         begin
                             reg_dst      <= 7;
@@ -1102,6 +1103,7 @@ module execution_unit
 
                         8'hAB:
                         begin
+                            // @todo: Check if the second check is superfluous.
                             if(instruction_step != 1 || bus_command_done)
                                 instruction_step <= (instruction_step + 1) % 3;
 
