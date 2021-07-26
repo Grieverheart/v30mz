@@ -19,7 +19,6 @@ then the two micro operation are independent. The first is a move and the second
 
 # TODO
 
-* Try making the bus microop operands work like for the alu microop; first operand is address, second is data_in or data_out.
 * Implement PUSH.
 * Implement addition of segment in effective address when doing a bus operation.
 * Implement more block manipulation instructions.

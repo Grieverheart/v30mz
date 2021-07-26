@@ -331,18 +331,16 @@ module execution_unit
         rom[5]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH, 2'b10, MICRO_MOV_PC,   MICRO_MOV_DISP};
 
         // OUT acc -> imm8
-        rom[6]  = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_ADD,  MICRO_MOV_IMM};
-        rom[7]  = {3'b110, 5'd0,                 MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_DO,   MICRO_MOV_AW};
+        rom[6]  = {3'b110, 5'd0,                 MICRO_BUS_OP_IO_WRITE, 2'b10, MICRO_MOV_AW,   MICRO_MOV_IMM};
 
         // IN acc -> imm8
-        rom[8]  = {3'b001, MICRO_MISC_OP_B_NONE,  MICRO_MISC_OP_A_NONE, 2'b00, MICRO_MOV_ADD,  MICRO_MOV_IMM};
-        rom[9]  = {3'b110, 5'd0,                  MICRO_BUS_OP_IO_READ, 2'b10, MICRO_MOV_AW,   MICRO_MOV_DI};
+        rom[8]  = {3'b110, 5'd0,                  MICRO_BUS_OP_IO_READ, 2'b10, MICRO_MOV_AW,   MICRO_MOV_IMM};
 
         // @info: ALU: ttu??aaaaa (t = type, u = use alu result, a = alu op)
         // @note: If MICRO_ALU_USE_RESULT but src is memory, then don't write
         // result back this step but instead run the next microinstruction.
         rom[10] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_ONES, MICRO_MOV_RM};
-        rom[11] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,    MICRO_MOV_ALU_R};
+        rom[11] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM,   MICRO_MOV_ALU_R};
 
         // @info: Long jump: tttcccdddd (t = type, c = jump condition, d = jump
         // destination)
@@ -371,14 +369,13 @@ module execution_unit
         rom[23] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_RM, MICRO_MOV_R};
 
         // CALL far-proc
+        // @todo: convert these bus calls to the new convention.
         rom[24] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB,  2'b00, MICRO_MOV_TWOS, MICRO_MOV_SP};
-        rom[25] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_ADD,  MICRO_MOV_SP};
-        rom[26] = {3'b110, 5'd0,                 MICRO_BUS_OP_MEM_WRITE, 2'b00, MICRO_MOV_DO,   MICRO_MOV_PS};
-        rom[27] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_PS,   MICRO_MOV_IMM};
-        rom[28] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB,  2'b00, MICRO_MOV_TWOS, MICRO_MOV_SP};
-        rom[29] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_ADD,  MICRO_MOV_SP};
-        rom[30] = {3'b110, 5'd0,                 MICRO_BUS_OP_MEM_WRITE, 2'b00, MICRO_MOV_DO,   MICRO_MOV_PC};
-        rom[31] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_PC,   MICRO_MOV_DISP};
+        rom[25] = {3'b110, 5'd0,                 MICRO_BUS_OP_MEM_WRITE, 2'b00, MICRO_MOV_PS,   MICRO_MOV_SP};
+        rom[26] = {3'b001, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_PS,   MICRO_MOV_IMM};
+        rom[27] = {2'b01, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB,  2'b00, MICRO_MOV_TWOS, MICRO_MOV_SP};
+        rom[28] = {3'b110, 5'd0,                 MICRO_BUS_OP_MEM_WRITE, 2'b00, MICRO_MOV_PC,   MICRO_MOV_SP};
+        rom[29] = {3'b001, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_PC,   MICRO_MOV_DISP};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -463,21 +460,12 @@ module execution_unit
 
     wire [15:0] reg_read =
          (mov_from == READ_SRC_SREG) ? segment_registers[reg_src[1:0]]:
-        ((mov_from == READ_SRC_PC) ? PC:
-        ((mov_from == READ_SRC_TMP) ? reg_tmp:
-        ((mov_src_size == 1) ? registers[reg_src]:
-        ((reg_src[2]   == 0) ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
-                               {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]}))));
+        ((mov_from == READ_SRC_PC)   ? PC:
+        ((mov_from == READ_SRC_TMP)  ? reg_tmp:
+        ((mov_src_size == 1)         ? registers[reg_src]:
+        ((reg_src[2]   == 0)         ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
+                                       {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]}))));
 
-    // @note: We have introduced a combinatorial loop here because of
-    // 'READ_SRC_ALU'. Fortunately, the loop is never triggered, at least not
-    // in simulation. The only way for the loop to trigger would be when src
-    // and dst of a mov are MICRO_MOV_ALU_R and MICRO_MOV_ALU_A/B
-    // respectively. Now, the loop exists because we allow for explicit mov of
-    // the alu result. To remove the loop, I split the mov_data to
-    // mov_data_alu meant to be fed to alu_a, alu_b, and mov_data meant to be
-    // fed anywhere else. The mov_data_alu has excluded the case when
-    // mov_from == READ_SRC_ALU.
     // @todo: This is not a very nice way to handle mov_src_size.
     wire [15:0] mov_data_alu =
          (mov_from == READ_SRC_MEM)  ? ((mov_src_size == 1) ? data_in: {8'd0, data_in[7:0]}):
@@ -491,7 +479,12 @@ module execution_unit
 
     assign regfile_write_id = (mov_src_size == 1) ? reg_dst: {1'd0, reg_dst[1:0]};
 
-    wire [15:0] regfile_write_data_temp = alu_reg_wb ? alu_r: mov_data;
+    wire micro_bus_read  = (micro_op_type == MICRO_TYPE_BUS) && (micro_bus_op[0] == 0);
+    wire micro_bus_write = (micro_op_type == MICRO_TYPE_BUS) && (micro_bus_op[0] == 1);
+    wire [15:0] regfile_write_data_temp =
+         alu_reg_wb     ? alu_r:
+        (micro_bus_read ? data_in: mov_data);
+
     assign regfile_write_data =
          (mov_src_size == 1) ? regfile_write_data_temp:
         ((reg_dst[2]   == 0) ? {
@@ -583,13 +576,15 @@ module execution_unit
     assign micro_mov_src = micro_op[4:0];
 
     wire [4:0] micro_mov_dst;
-    assign micro_mov_dst = (micro_op_type[2:1] == 2'b01)? MICRO_MOV_ALU_A: micro_op[9:5];
+    assign micro_mov_dst =
+         (micro_op_type[2:1] == 2'b01)? MICRO_MOV_ALU_A:
+        ((micro_op_type[2:0] == MICRO_TYPE_BUS)? MICRO_MOV_ADD: micro_op[9:5]);
 
     assign micro_op = rom[microaddress + {5'd0, microprogram_counter}];
 
     // @note: Also run next microinstruction when we have alu writeback.
-    wire alu_mem_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod != 2'b11 && alu_op != ALUOP_CMP);
-    wire alu_reg_wb = (micro_op_type[2:1] == 2'b01 && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod == 2'b11 && alu_op != ALUOP_CMP);
+    wire alu_mem_wb = (micro_op_type[2:1] == MICRO_TYPE_ALU && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod != 2'b11 && alu_op != ALUOP_CMP);
+    wire alu_reg_wb = (micro_op_type[2:1] == MICRO_TYPE_ALU && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod == 2'b11 && alu_op != ALUOP_CMP);
     reg branch_taken = 0;
     assign instruction_nearly_done = micro_op[10];
     wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken);
@@ -806,8 +801,8 @@ module execution_unit
                 end
                 else if(micro_mov_dst == MICRO_MOV_ALU_A)
                 begin
-                    mov_dst_size <= byte_word_field;
                     alu_a <= mov_data_alu;
+                    mov_dst_size <= byte_word_field;
                 end
                 else if(micro_mov_dst >= MICRO_MOV_AW)
                 begin
@@ -838,7 +833,7 @@ module execution_unit
                     mov_dst_size <= 0;
                 end
 
-                if(micro_op_type[2:1] == 2'b01)
+                if(micro_op_type[2:1] == MICRO_TYPE_ALU)
                 begin
                     case(micro_op[9:5])
                         MICRO_MOV_TWOS:
@@ -879,6 +874,107 @@ module execution_unit
 
                         default:
                             alu_b <= 16'hCAFE;
+                    endcase
+                end
+                // Bus write operation
+                else if(micro_bus_write)
+                begin
+                    case(micro_op[9:5])
+                        MICRO_MOV_TWOS:
+                            data_out <= 2;
+
+                        MICRO_MOV_ONES:
+                            data_out <= 1;
+
+                        MICRO_MOV_ZERO:
+                            data_out <= 0;
+
+                        MICRO_MOV_R:
+                        begin
+                            if(byte_word_field == 1)
+                                data_out <= registers[dst_operand[2:0]];
+                            else if(dst_operand[2] == 0)
+                                data_out <= {8'd0, registers[{1'd0, dst_operand[1:0]}][7:0]};
+                            else
+                                data_out <= {8'd0, registers[{1'd0, dst_operand[1:0]}][15:8]};
+                        end
+
+                        MICRO_MOV_AL,
+                        MICRO_MOV_AH:
+                            data_out <= {8'd0, registers[{micro_op[9:5] - MICRO_MOV_AL}[2:0]][15:8]};
+
+                        MICRO_MOV_AW, MICRO_MOV_CW, MICRO_MOV_DW, MICRO_MOV_BW,
+                        MICRO_MOV_SP, MICRO_MOV_BP, MICRO_MOV_IX, MICRO_MOV_IY:
+                            data_out <= registers[{micro_op[9:5] - MICRO_MOV_AW}[2:0]];
+
+                        MICRO_MOV_DS1,
+                        MICRO_MOV_PS,
+                        MICRO_MOV_SS,
+                        MICRO_MOV_DS0:
+                            data_out <= segment_registers[{micro_op[9:5] - MICRO_MOV_DS1}[1:0]];
+
+                        MICRO_MOV_PC:
+                            data_out <= PC;
+
+                        MICRO_MOV_DISP:
+                            data_out <= disp_sign_extended;
+
+                        MICRO_MOV_IMM:
+                            data_out <= imm;
+
+                        default:
+                        begin
+                            data_out <= 16'hCAFE;
+                            error <= `__LINE__;
+                        end
+                    endcase
+                end
+                // Bus read operation
+                else if(micro_bus_read)
+                begin
+                    case(micro_op[9:5])
+                        MICRO_MOV_R,
+                        MICRO_MOV_RM:
+                        begin
+                            // Destination is register specified by modrm.
+                            if(mod == 2'b11)
+                            begin
+                                reg_dst      <= src_operand[2:0];
+                                mov_dst_size <= byte_word_field;
+                                regfile_we   <= 1;
+                            end
+                        end
+
+                        MICRO_MOV_AL,
+                        MICRO_MOV_AH:
+                        begin
+                            // Destination is byte register
+                            regfile_we   <= 1;
+                            reg_dst      <= {micro_op[9:5] - MICRO_MOV_AL}[2:0];
+                            mov_dst_size <= 0;
+                        end
+
+                        MICRO_MOV_AW, MICRO_MOV_CW, MICRO_MOV_DW, MICRO_MOV_BW,
+                        MICRO_MOV_SP, MICRO_MOV_BP, MICRO_MOV_IX, MICRO_MOV_IY:
+                        begin
+                            mov_dst_size <= 1;
+                            regfile_we   <= 1;
+                            reg_dst      <= {micro_op[9:5] - MICRO_MOV_AW}[2:0];
+                        end
+
+                        MICRO_MOV_PC:
+                        begin
+                            mov_dst_size <= 1;
+                            regfile_we   <= 1;
+                            reg_dst      <= 0;
+                        end
+
+                        // @todo: Segment registers.
+
+                        MICRO_MOV_NONE:;
+
+                        default:
+                            error <= `__LINE__;
                     endcase
                 end
 
