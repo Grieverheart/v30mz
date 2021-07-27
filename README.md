@@ -19,7 +19,6 @@ then the two micro operation are independent. The first is a move and the second
 
 # TODO
 
-* Bus operations take 2 clocks currently. We don't always have to wait, right? Also bus status takes 1 clock to update, we should be able to do it in less.
 * Implement PUSH.
 * Implement addition of segment in effective address when doing a bus operation.
 * Implement more block manipulation instructions.
@@ -28,3 +27,4 @@ then the two micro operation are independent. The first is a move and the second
 * Add testing. The most useful for now would be regression testing. Need to parse vcd file and watch a number of variables over time and perhaps write a script to compare two vcd files for the specified variables. These variables should be the most important state, like PC, normal and segment registers, microaddress, etc.
 * Implement pipelining by decoupling the execution state.
 * Implement even/odd address reading/writing.
+* Do we always have to wait for write bus operation to finish? In some sense I guess we do, e.g. if for some reason it takes more time to write than expected.

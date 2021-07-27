@@ -246,37 +246,32 @@ module v30mz
 
         .data_in(data_in),
         // We should not route readyb to EXU when we issued a prefetch.
-        .bus_command_done((prefetch_request || queue_push)? 0: !readyb)
+        .bus_command_done(prefetch_request ? 0: !readyb)
     );
 
     assign queue_push = (!resetn && prefetch_request && !readyb)? 1: 0;
 
-    // @todo: Move some things to always_latch.
-    always_ff @ (posedge clk)
+    always_latch
     begin
-        if(reset)
+        if(reset && reset_counter == 2'd3)
         begin
-            if(reset_counter == 2'd3)
-            begin
-                bus_status       <= 4'hf;
-                PSW              <= 16'b1111000000000010;
-                prefetch_request <= 0;
-            end
-            else
-                reset_counter <= reset_counter + 1;
+            prefetch_request <= 0;
+            bus_status <= 4'hf;
         end
         else
         begin
-            reset_counter <= 0;
-
             // Finish prefetch before taking care of other r/w requests.
-            if(prefetch_request && !readyb)
-            begin
+            if(!readyb)
                 prefetch_request <= 0;
-                bus_status       <= 4'hf;
+
+            // Prefetch instruction if not full, or waiting for memory.
+            if(!queue_full && !queue_suspend)
+            begin
+                bus_status <= 4'b1001;
+                prefetch_request <= 1;
             end
 
-            if(eu_bus_command == BUS_COMMAND_MEM_READ)
+            else if(eu_bus_command == BUS_COMMAND_MEM_READ)
                 bus_status <= 4'b1001;
 
             else if(eu_bus_command == BUS_COMMAND_MEM_WRITE)
@@ -288,13 +283,24 @@ module v30mz
             else if(eu_bus_command == BUS_COMMAND_IO_WRITE)
                 bus_status <= 4'b0110;
 
-            // Prefetch instruction if not full, or waiting for memory.
-            else if((eu_bus_command == BUS_COMMAND_IDLE) && !queue_full && !queue_suspend)
-            begin
-                prefetch_request <= 1;
-                bus_status       <= 4'b1001;
-            end
+        end
+    end
 
+    // @todo: Move some things to always_latch.
+    always_ff @ (posedge clk)
+    begin
+        if(reset)
+        begin
+            if(reset_counter == 2'd3)
+            begin
+                PSW <= 16'b1111000000000010;
+            end
+            else
+                reset_counter <= reset_counter + 1;
+        end
+        else
+        begin
+            reset_counter <= 0;
         end
     end
 
