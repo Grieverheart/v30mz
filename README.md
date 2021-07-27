@@ -19,6 +19,7 @@ then the two micro operation are independent. The first is a move and the second
 
 # TODO
 
+* Bus operations take 2 clocks currently. We don't always have to wait, right? Also bus status takes 1 clock to update, we should be able to do it in less.
 * Implement PUSH.
 * Implement addition of segment in effective address when doing a bus operation.
 * Implement more block manipulation instructions.
