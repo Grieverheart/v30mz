@@ -389,6 +389,15 @@ module execution_unit
         rom[26] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_PC, MICRO_MOV_SP};
         rom[27] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_PC, MICRO_MOV_DISP};
 
+        // Just do a memory read request, and we'll take care of using the
+        // data in data_in next step.
+        // @todo: Is this possible or do we need e.g. latch the data to reg_tmp?
+        rom[28] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_RM};
+        rom[29] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_RM, MICRO_MOV_SP};
+
+        //rom[30] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_RM};
+        rom[31] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b10, MICRO_MOV_RM, MICRO_MOV_SP};
+
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
 
@@ -437,15 +446,27 @@ module execution_unit
             translation_rom[{7'b1100_000, i[0]}] = 9'd18;        // ALU imm -> rm (Shift family)
 
         for (int i = 0; i < 14; i++)
-            translation_rom[{2'b00, i[3:1], 2'b01, i[0]}] = 9'd22;        // XOR rm -> r
+            translation_rom[{2'b00, i[3:1], 2'b01, i[0]}] = 9'd22; // XOR rm -> r
 
         for (int i = 0; i < 14; i++)
-            translation_rom[{2'b00, i[3:1], 2'b00, i[0]}] = 9'd23;        // XOR r  -> rm
+            translation_rom[{2'b00, i[3:1], 2'b00, i[0]}] = 9'd23; // XOR r  -> rm
 
         translation_rom[8'b1110_1001] = 9'd20;                   // BR near-label
         translation_rom[8'b1110_1011] = 9'd20;                   // BR short-label
 
         translation_rom[8'b1001_1010] = 9'd24;                   // CALL far-proc
+
+        for (int i = 0; i < 4; i++)
+            translation_rom[{3'b000, i[1:0], 3'b110}] = 9'd29;   // PUSH sreg
+
+        for (int i = 0; i < 8; i++)
+            translation_rom[{5'b0101_0, i[2:0]}] = 9'd29;        // PUSH reg16
+
+        for (int i = 0; i < 4; i++)
+            translation_rom[{3'b000, i[1:0], 3'b111}] = 9'd31;   // POP sreg
+
+        for (int i = 0; i < 8; i++)
+            translation_rom[{5'b0101_1, i[2:0]}] = 9'd31;        // POP reg16
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -922,14 +943,24 @@ module execution_unit
                         MICRO_MOV_ZERO:
                             data_out <= 0;
 
+                        MICRO_MOV_RM,
                         MICRO_MOV_R:
                         begin
-                            if(byte_word_field == 1)
-                                data_out <= registers[dst_operand[2:0]];
-                            else if(dst_operand[2] == 0)
-                                data_out <= {8'd0, registers[{1'd0, dst_operand[1:0]}][7:0]};
+                            if(need_modrm && mod != 2'b11)
+                            begin
+                                // It is implied that the previous microcode
+                                // step has loaded the data from memory.
+                                data_out <= data_in;
+                            end
                             else
-                                data_out <= {8'd0, registers[{1'd0, dst_operand[1:0]}][15:8]};
+                            begin
+                                if(byte_word_field == 1)
+                                    data_out <= registers[dst_operand[2:0]];
+                                else if(dst_operand[2] == 0)
+                                    data_out <= {8'd0, registers[{1'd0, dst_operand[1:0]}][7:0]};
+                                else
+                                    data_out <= {8'd0, registers[{1'd0, dst_operand[1:0]}][15:8]};
+                            end
                         end
 
                         MICRO_MOV_AL:
@@ -970,8 +1001,9 @@ module execution_unit
                         MICRO_MOV_R,
                         MICRO_MOV_RM:
                         begin
+                            // @todo: sreg
                             // Destination is register specified by modrm.
-                            if(mod == 2'b11)
+                            if(!need_modrm || mod == 2'b11)
                             begin
                                 reg_dst      <= src_operand[2:0];
                                 mov_dst_size <= byte_word_field;
