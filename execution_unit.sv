@@ -482,7 +482,14 @@ module execution_unit
     wire regfile_we = regfile_we_r && (!read_write_wait || bus_command_done);
     wire [2:0] regfile_write_id;
     wire [15:0] regfile_write_data;
-    wire [15:0] mov_data;
+
+    // We use the secondary write port of the register file for bus microcode
+    // index updates.
+    reg regfile_we_r_secondary;
+    wire regfile_we_secondary = regfile_we_r_secondary && (!read_write_wait || bus_command_done);
+    reg [2:0] regfile_write_id_secondary;
+    wire [15:0] regfile_write_data_secondary = reg_tmp;
+
     wire [15:0] registers[0:7];
 
     // Latched mov info for performing mov on next posedge clk.
@@ -509,7 +516,7 @@ module execution_unit
         ((mov_from == READ_SRC_DISP) ? disp_sign_extended:
                                        reg_read));
 
-    assign mov_data =
+    wire [15:0] mov_data =
          (mov_from == READ_SRC_ALU)  ? ((mov_src_size == 1) ? alu_r: {8'd0, alu_r[7:0]}):
                                         mov_data_alu;
 
@@ -517,18 +524,9 @@ module execution_unit
 
     wire micro_bus_read  = (micro_op_type == MICRO_TYPE_BUS) && (micro_bus_op[0] == 0);
     wire micro_bus_write = (micro_op_type == MICRO_TYPE_BUS) && (micro_bus_op[0] == 1);
-    wire micro_bus_ind_update = (micro_op_type == MICRO_TYPE_BUS) && (micro_bus_ind != MICRO_BUS_IND_ZERO);
     wire [15:0] regfile_write_data_temp =
          alu_reg_wb           ? alu_r:
-        (micro_bus_ind_update ? reg_tmp:
-        (micro_bus_read       ? data_in: mov_data));
-
-    wire [15:0] micro_bus_ind_offset =
-         (micro_bus_ind == MICRO_BUS_IND_INC1)?  1:
-        ((micro_bus_ind == MICRO_BUS_IND_INC2)?  2:
-        ((micro_bus_ind == MICRO_BUS_IND_DEC1)? -1:
-        ((micro_bus_ind == MICRO_BUS_IND_DEC2)? -2:
-                                                 0)));
+        (micro_bus_read       ? data_in: mov_data);
 
     assign regfile_write_data =
          (mov_src_size == 1) ? regfile_write_data_temp:
@@ -543,6 +541,16 @@ module execution_unit
 
     assign sregfile_write_id   = reg_dst[1:0];
     assign sregfile_write_data = regfile_write_data_temp;
+
+    //wire micro_bus_ind_update = (micro_op_type == MICRO_TYPE_BUS) && (micro_bus_ind != MICRO_BUS_IND_ZERO);
+
+
+    wire [15:0] micro_bus_ind_offset =
+         (micro_bus_ind == MICRO_BUS_IND_INC1)?  1:
+        ((micro_bus_ind == MICRO_BUS_IND_INC2)?  2:
+        ((micro_bus_ind == MICRO_BUS_IND_DEC1)? -1:
+        ((micro_bus_ind == MICRO_BUS_IND_DEC2)? -2:
+                                                 0)));
 
     // The register file holds the following registers
     //
@@ -569,6 +577,10 @@ module execution_unit
         .we(regfile_we),
         .write_id(regfile_write_id),
         .write_data(regfile_write_data),
+
+        .we_secondary(regfile_we_secondary),
+        .write_id_secondary(regfile_write_id_secondary),
+        .write_data_secondary(regfile_write_data_secondary),
         .registers
     );
 
@@ -672,17 +684,19 @@ module execution_unit
 
         if(!read_write_wait)
         begin
-            regfile_we_r  <= 0;
-            sregfile_we_r <= 0;
+            regfile_we_r           <= 0;
+            regfile_we_r_secondary <= 0;
+            sregfile_we_r          <= 0;
         end
 
         if(reset)
         begin
-            read_write_wait       <= 0;
-            bus_command           <= BUS_COMMAND_IDLE;
-            bus_upper_byte_enable <= 1;
-            regfile_we_r          <= 0;
-            sregfile_we_r         <= 0;
+            read_write_wait        <= 0;
+            bus_command            <= BUS_COMMAND_IDLE;
+            bus_upper_byte_enable  <= 1;
+            regfile_we_r           <= 0;
+            regfile_we_r_secondary <= 0;
+            sregfile_we_r          <= 0;
         end
 
         // @todo: I think we forgot the MICRO_MOV_NONE.
@@ -1001,7 +1015,7 @@ module execution_unit
                         MICRO_MOV_R,
                         MICRO_MOV_RM:
                         begin
-                            // @todo: sreg
+                            //@todo: sreg
                             // Destination is register specified by modrm.
                             if(!need_modrm || mod == 2'b11)
                             begin
@@ -1104,18 +1118,16 @@ module execution_unit
                             begin
                                 if(micro_mov_src == MICRO_MOV_AL || micro_mov_src == MICRO_MOV_AH)
                                 begin
-                                    regfile_we_r <= 1;
-                                    mov_dst_size <= 0;
-                                    reg_dst <= {micro_mov_src - MICRO_MOV_AL}[2:0] << 2;
+                                    regfile_we_r_secondary <= 1;
+                                    regfile_write_id_secondary <= {micro_mov_src - MICRO_MOV_AL}[2:0] << 2;
                                     reg_tmp <= (micro_mov_src == MICRO_MOV_AL)?
                                         {8'd0, registers[{micro_mov_src - MICRO_MOV_AL}[2:0]][7:0]} + micro_bus_ind_offset:
                                         {8'd0, registers[{micro_mov_src - MICRO_MOV_AL}[2:0]][15:8]} + micro_bus_ind_offset;
                                 end
                                 else if(micro_mov_src >= MICRO_MOV_AW && micro_mov_src <= MICRO_MOV_IY)
                                 begin
-                                    regfile_we_r <= 1;
-                                    mov_dst_size <= 1;
-                                    reg_dst <= {micro_mov_src - MICRO_MOV_AW}[2:0];
+                                    regfile_we_r_secondary <= 1;
+                                    regfile_write_id_secondary <= {micro_mov_src - MICRO_MOV_AW}[2:0];
                                     reg_tmp <= registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] + micro_bus_ind_offset;
                                 end
                                 else
