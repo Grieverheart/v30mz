@@ -579,6 +579,16 @@ module decode
                 dst        <= 0;
                 src        <= 0;
             end
+            
+            8'b1100_1011: // ret far
+            begin
+                need_modrm <= 0;
+                need_disp  <= 0;
+                need_imm   <= 0;
+                imm_size   <= 0;
+                src        <= 0;
+                dst        <= 0;
+            end
 
             8'b1110_1001: // BR near-label
             begin

@@ -4,12 +4,11 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Currently stuck at `RET far` instruction 0xCB of bootrom. The instruction runs in 8 clock cycles on the V30MZ.
-
+Currently cpu jumps to HALT instruction. Not sure if that's what it is supposed to do. We need a baseline to compare to. Can we get higan to run on the BIOS and output a waveform?
 
 # TODO
 
-* Implement RET instruction.
+* Find a way to get a known waveform for the BIOS.
 * I often do the check `mod != 2'b11`, but modrm is not always present. We should add a check for need_modrm just to be sure.
 * Set alu flags in PSW?
 * Handle 's' sign extension specification opcode bit in 'ALU r/m, imm' alu instructions. Note: imm8 is sign-extended to 16-bit. Also not sure if the 'W' bit is 1 or 0 in this case, but it could be tricky handling the sizing correctly.

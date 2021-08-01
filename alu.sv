@@ -5,7 +5,7 @@ enum [4:0]
     ALUOP_ADD  = 5'd0,
     ALUOP_OR   = 5'd1,
     ALUOP_ADDC = 5'd2,
-    ALUOP_NEG  = 5'd3,
+    ALUOP_SUBC = 5'd3,
     ALUOP_AND  = 5'd4,
     ALUOP_SUB  = 5'd5,
     ALUOP_XOR  = 5'd6,
@@ -21,7 +21,8 @@ enum [4:0]
     ALUOP_SHRA = 5'd15,
 
     ALUOP_INC  = 5'd16,
-    ALUOP_DEC  = 5'd17
+    ALUOP_DEC  = 5'd17,
+    ALUOP_NEG  = 5'd18
 } AluOp;
 
 enum [2:0]

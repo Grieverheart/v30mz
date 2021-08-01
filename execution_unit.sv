@@ -398,6 +398,15 @@ module execution_unit
         //rom[30] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_RM};
         rom[31] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b10, MICRO_MOV_RM, MICRO_MOV_SP};
 
+        // To return from call outside segment
+        // PC ← (SP + 1, SP)
+        // PS ← (SP + 3, SP + 2)
+        // SP ← SP + 4
+        rom[32] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[33] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_PC, MICRO_MOV_SP};
+        rom[34] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_PS, MICRO_MOV_SP};
+        rom[35] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
 
@@ -430,8 +439,8 @@ module execution_unit
         for (int i = 0; i < 4; i++)
             translation_rom[{6'b001000, i[1:0]}] = 9'd10;        // AND r -> rm
 
-        for (int i = 0; i < 2; i++)
-            translation_rom[{7'b0010010, i[0]}] = 9'd16;         // AND imm -> r
+        for (int i = 0; i < 16; i++)
+            translation_rom[{2'b00, i[3:1], 2'b10, i[0]}] = 9'd16; // ALU imm -> acc
 
         for (int i = 0; i < 16; i++)
             translation_rom[{4'b0111, i[3:0]}] = 9'd12;          // BNC
@@ -445,11 +454,11 @@ module execution_unit
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1100_000, i[0]}] = 9'd18;        // ALU imm -> rm (Shift family)
 
-        for (int i = 0; i < 14; i++)
-            translation_rom[{2'b00, i[3:1], 2'b01, i[0]}] = 9'd22; // XOR rm -> r
+        for (int i = 0; i < 16; i++)
+            translation_rom[{2'b00, i[3:1], 2'b01, i[0]}] = 9'd22; // ALU rm -> r
 
-        for (int i = 0; i < 14; i++)
-            translation_rom[{2'b00, i[3:1], 2'b00, i[0]}] = 9'd23; // XOR r  -> rm
+        for (int i = 0; i < 16; i++)
+            translation_rom[{2'b00, i[3:1], 2'b00, i[0]}] = 9'd23; // ALU r  -> rm
 
         translation_rom[8'b1110_1001] = 9'd20;                   // BR near-label
         translation_rom[8'b1110_1011] = 9'd20;                   // BR short-label
@@ -467,6 +476,8 @@ module execution_unit
 
         for (int i = 0; i < 8; i++)
             translation_rom[{5'b0101_1, i[2:0]}] = 9'd31;        // POP reg16
+
+        translation_rom[8'b1100_1011] = 9'd32;                   // RET (segment-external call)
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -640,6 +651,7 @@ module execution_unit
     assign micro_op = rom[microaddress + {5'd0, microprogram_counter}];
 
     reg [15:0] reg_tmp; // temp register which can be used as read source.
+    reg [15:0] pc_write_data; // temp register which can be used as read source.
 
     // @note: Also run next microinstruction when we have alu writeback.
     wire alu_mem_wb = (micro_op_type[2:1] == MICRO_TYPE_ALU && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod != 2'b11 && alu_op != ALUOP_CMP);
@@ -1042,11 +1054,21 @@ module execution_unit
                             reg_dst      <= {micro_op[9:5] - MICRO_MOV_AW}[2:0];
                         end
 
+                        MICRO_MOV_DS1,
+                        MICRO_MOV_PS,
+                        MICRO_MOV_SS,
+                        MICRO_MOV_DS0:
+                        begin
+                            mov_dst_size  <= 1;
+                            sregfile_we_r <= 1;
+                            reg_dst       <= {micro_op[9:5] - MICRO_MOV_DS1}[2:0];
+                        end
+
                         MICRO_MOV_PC:
                         begin
-                            mov_dst_size <= 1;
-                            regfile_we_r <= 1;
-                            reg_dst      <= 0;
+                            mov_dst_size  <= 1;
+                            reg_dst       <= 0;
+                            pc_write_data <= data_in;
                         end
 
                         // @todo: Segment registers.
@@ -1072,8 +1094,9 @@ module execution_unit
                     begin
                         mov_dst_size <= 1;
 
-                        if(micro_mov_src  == MICRO_MOV_PC)
+                        if(micro_mov_src == MICRO_MOV_PC)
                         begin
+                            // @todo: Is PC really written to?
                             reg_dst <= 0;
                         end
                         else
@@ -1275,6 +1298,10 @@ module execution_unit
                 if(micro_mov_dst == MICRO_MOV_PC)
                     PC <= mov_data;
 
+                // @todo: Do the same for alu writeback?
+                if(micro_bus_read && micro_op[9:5] == MICRO_MOV_PC)
+                    PC <= pc_write_data;
+
                 segment_override <= 0;
 
                 if(translation_rom[opcode] == 0)
@@ -1288,7 +1315,6 @@ module execution_unit
                             end
                             else
                             begin
-                                PC <= PC + 1;
                                 instruction_repeat <= 1;
                             end
                         end
