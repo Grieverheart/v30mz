@@ -4,10 +4,11 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Currently cpu jumps to HALT instruction. Not sure if that's what it is supposed to do. We need a baseline to compare to. Can we get higan to run on the BIOS and output a waveform?
+Currently stuck at instruction 0x74 at 0x086A. For some reason, the PC is set to the jump address 0x5D, instead of 0x085D.
 
 # TODO
 
+* Fix instruction 0x74 not properly working with word address. There is something wrong with the handling of the mov_data.
 * Find a way to get a known waveform for the BIOS.
 * I often do the check `mod != 2'b11`, but modrm is not always present. We should add a check for need_modrm just to be sure.
 * Set alu flags in PSW?

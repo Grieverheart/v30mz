@@ -226,8 +226,8 @@ module alu
             ALUOP_SUB:
             begin
                 R = A - B;
-                if(alu_op == ALUOP_SUB)
-                    flags[ALU_FLAG_CY] = (A > B);
+                if(alu_op != ALUOP_DEC)
+                    flags[ALU_FLAG_CY] = (A < B);
 
                 flags[ALU_FLAG_V] = (A[msb] != B[msb]) && (R[msb] != A[msb]);
                 flags[ALU_FLAG_Z] = (R == 0);
