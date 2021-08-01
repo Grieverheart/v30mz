@@ -539,6 +539,11 @@ module execution_unit
          alu_reg_wb           ? alu_r:
         (micro_bus_read       ? data_in: mov_data);
 
+    // @todo: We actually need to take into account both mov_src_size and
+    // mov_dst_size. If e.g. mov_src_size = 1 and mov_dst_size = 0, then we
+    // have to take the smallest of the two into account when movind data. Of
+    // course this means that mov_dst_size needs to be correctly set
+    // everywhere.
     assign regfile_write_data =
          (mov_src_size == 1) ? regfile_write_data_temp:
         ((reg_dst[2]   == 0) ? {
@@ -810,7 +815,7 @@ module execution_unit
                 else if(micro_mov_src == MICRO_MOV_ALU_R)
                 begin
                     mov_from     <= READ_SRC_ALU;
-                    mov_src_size <= byte_word_field;
+                    mov_src_size <= 1;
                 end
                 else if(micro_mov_src >= MICRO_MOV_AW)
                 begin
