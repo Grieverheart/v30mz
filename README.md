@@ -4,11 +4,11 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Currently stuck at instruction 0x74 at 0x086A. For some reason, the PC is set to the jump address 0x5D, instead of 0x085D.
+It seems evident that we need to handle EEPROM commands to progress.
 
 # TODO
 
-* Fix instruction 0x74 not properly working with word address. There is something wrong with the handling of the mov_data.
+* Handle EEPROM commands in verilator simulation.
 * Find a way to get a known waveform for the BIOS.
 * I often do the check `mod != 2'b11`, but modrm is not always present. We should add a check for need_modrm just to be sure.
 * Set alu flags in PSW?
