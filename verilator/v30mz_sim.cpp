@@ -47,11 +47,13 @@ int main(int argc, char** argv, char** env)
     v30mz->trace(tfp, 99);  // Trace 99 levels of hierarchy
     tfp->open("sim.vcd");
 
-    uint16_t eeprom_data;
-    uint16_t eeprom_address;
-    uint8_t eeprom_command;
-    uint8_t eeprom_status = 0;
-    bool eeprom_command_start;
+    uint16_t eeprom[64];
+    uint16_t eeprom_data    = 0;
+    uint16_t eeprom_address = 0;
+    uint8_t eeprom_status   = 3;
+    bool eeprom_write_protect   = true;
+    bool eeprom_write_requested = false;
+    bool eeprom_read_requested  = false;
 
     int mem_counter = 0;
 
@@ -116,8 +118,7 @@ int main(int argc, char** argv, char** env)
                 case 0xBA:
                 case 0xBB:
                 {
-                    // REG_IEEP_DATA
-                    printf("IN: REG_IEEP_DATA\n");
+                    //printf("IN: REG_IEEP_DATA\n");
                     v30mz->data_in = eeprom_data;
                     break;
                 }
@@ -125,15 +126,15 @@ int main(int argc, char** argv, char** env)
                 case 0xBC:
                 case 0xBD:
                 {
-                    printf("IN: REG_IEEP_ADDR\n");
-                    printf("Oops");
+                    //printf("IN: REG_IEEP_ADDR\n");
+                    v30mz->data_in = eeprom_address;
                     break;
                 }
 
                 case 0xBE:
                 {
                     // REG_IEEP_STATUS
-                    printf("IN: REG_IEEP_STATUS\n");
+                    //printf("IN: REG_IEEP_STATUS\n");
                     v30mz->data_in = eeprom_status;
                     break;
                 }
@@ -155,8 +156,7 @@ int main(int argc, char** argv, char** env)
                 case 0xBA:
                 case 0xBB:
                 {
-                    // REG_IEEP_DATA
-                    printf("OUT: REG_IEEP_DATA\n");
+                    //printf("OUT: REG_IEEP_DATA\n");
                     eeprom_data = v30mz->data_out;
                     break;
                 }
@@ -164,40 +164,78 @@ int main(int argc, char** argv, char** env)
                 case 0xBC:
                 case 0xBD:
                 {
-                    // REG_IEEP_ADDR
-                    printf("OUT: REG_IEEP_ADDR\n");
-                    eeprom_command_start = v30mz->data_out & 0x100;
-                    
-                    eeprom_command = (v30mz->data_out >> 6) & 0x3;
-                    if(eeprom_command == 0x00)
-                    {
-                        eeprom_command = 3 + ((v30mz->data_out >> 4) & 0x3);
-                        eeprom_address = v30mz->data_out & 0xF;
-                    }
-                    else
-                    {
-                        --eeprom_command;
-                        eeprom_address = v30mz->data_out & 0x3F;
-                    }
-
-                    printf("0x%x, 0x%x, 0x%x: %u - %d / 0x%x\n", v30mz->v30mz__DOT__PC, v30mz->address_out, v30mz->data_out, eeprom_command, eeprom_command_start, eeprom_address);
-
+                    eeprom_address = v30mz->data_out;
+                    //printf("OUT: REG_IEEP_ADDR %x\n", eeprom_address);
                     break;
                 }
 
                 case 0xBE:
                 {
-                    // REG_IEEP_CMD
-                    printf("OUT: REG_IEEP_CMD\n");
-                    printf("0x%x, 0x%x, 0x%x\n", v30mz->v30mz__DOT__PC, v30mz->address_out, v30mz->data_out & 0xFF);
+                    //printf("OUT: REG_IEEP_CMD\n");
+                    eeprom_read_requested  = v30mz->data_out & 0x10;
+                    eeprom_write_requested = v30mz->data_out & 0x20;
+
+                    int start = eeprom_address & (1 << 8);
+                    if(start)
+                    {
+                        int command = (eeprom_address >> 6) & 3;
+                        int special = (eeprom_address >> 4) & 3;
+                        int address = eeprom_address & 0x1F;
+
+                        // write disable
+                        if(command == 0 && special == 0)
+                            eeprom_write_protect = true;
+
+                        // write all
+                        if(command == 0 && special == 1 && !eeprom_write_protect)
+                        {
+                            //printf("write all\n");
+                            for(size_t i = 0; i < 64; ++i)
+                                eeprom[i] = eeprom_data;
+                        }
+
+                        // erase all
+                        if(command == 0 && special == 2 && !eeprom_write_protect)
+                        {
+                            //printf("erase all\n");
+                            for(size_t i = 0; i < 64; ++i)
+                                eeprom[i] = 0xFFFF;
+                        }
+
+                        // write enable
+                        if(command == 0 && special == 3)
+                            eeprom_write_protect = false;
+
+                        // write word
+                        if(command == 1 && eeprom_write_requested && !eeprom_write_protect)
+                        {
+                            //printf("write word\n");
+                            eeprom[address] = eeprom_data;
+                            eeprom_write_requested = false;
+                        }
+
+                        // read word
+                        if(command == 2 && eeprom_read_requested)
+                        {
+                            //printf("read word\n");
+                            eeprom_data = eeprom[address];
+                            eeprom_read_requested = false;
+                        }
+
+                        // erase word
+                        if(command == 3 && eeprom_write_requested && !eeprom_write_protect)
+                        {
+                            //printf("erase word\n");
+                            eeprom[address] = 0xFFFF;
+                            eeprom_write_requested = false;
+                        }
+                    }
+
                     break;
                 }
 
                 default:
-                {
-                    v30mz->data_in = 0x00;
                     break;
-                }
 
             }
             v30mz->readyb  = 0;

@@ -320,6 +320,16 @@ module decode
                 src        <= {1'b0, opcode[2:0]};
             end
 
+            8'b0110_0000: // PUSH R
+            begin
+                need_modrm <= 0;
+                need_disp  <= 0;
+                need_imm   <= 0;
+                imm_size   <= 0;
+                dst        <= 0;
+                src        <= 0;
+            end
+
             8'b0111_????: // Branch short-label
             begin
                 need_modrm <= 0;
@@ -584,6 +594,16 @@ module decode
             begin
                 need_modrm <= 0;
                 need_disp  <= 0;
+                need_imm   <= 0;
+                imm_size   <= 0;
+                src        <= 0;
+                dst        <= 0;
+            end
+
+            8'b1110_0010: // DBNZ loop
+            begin
+                need_modrm <= 0;
+                need_disp  <= 1;
                 need_imm   <= 0;
                 imm_size   <= 0;
                 src        <= 0;

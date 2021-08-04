@@ -266,7 +266,8 @@ module execution_unit
 
     localparam
         MICRO_JMP_XC = 3'd0,
-        MICRO_JMP_UC = 3'd1;
+        MICRO_JMP_UC = 3'd1,
+        MICRO_JMP_NZ = 3'd2;
 
     // @note:
     // Alu ops used by 8086 microcode.
@@ -383,9 +384,7 @@ module execution_unit
         // CALL far-proc
         // @todo: convert these bus calls to the new convention.
         rom[24] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_PS, MICRO_MOV_SP};
-        //rom[25] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB,  2'b00, MICRO_MOV_TWOS, MICRO_MOV_SP};
         rom[25] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_PS, MICRO_MOV_IMM};
-        //rom[27] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB,  2'b00, MICRO_MOV_TWOS, MICRO_MOV_SP};
         rom[26] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_PC, MICRO_MOV_SP};
         rom[27] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_PC, MICRO_MOV_DISP};
 
@@ -406,6 +405,30 @@ module execution_unit
         rom[33] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_PC, MICRO_MOV_SP};
         rom[34] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_PS, MICRO_MOV_SP};
         rom[35] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+
+        rom[36] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_DEC, 2'b00, MICRO_MOV_ONES, MICRO_MOV_CW};
+        rom[37] = {MICRO_TYPE_JMP, 5'd0, MICRO_JMP_NZ, 4'h0,                           2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+
+        rom[38] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_R, MICRO_MOV_RM};
+
+        // ** Implementation of PUSH R. **
+        //
+        // @note: Another possibility is to save SP to temp, and decrement SP
+        // with each bus operation. Although MICRO_MOV_TMP is not implemented
+        // yet. Both options can be done in 9 clock cycles as it should.
+        //
+        // rom[38] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_AW, MICRO_MOV_SP};
+        // rom[38] = {MICRO_TYPE_BUS, -5'sd4, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_CW, MICRO_MOV_SP};
+        // rom[38] = {MICRO_TYPE_BUS, -5'sd6, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_DW, MICRO_MOV_SP};
+        // rom[38] = {MICRO_TYPE_BUS, -5'sd8, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BW, MICRO_MOV_SP};
+        // // @todo: Is this possible?
+        // rom[38] = {MICRO_TYPE_BUS, -5'sd10, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_SP, MICRO_MOV_SP};
+        // rom[38] = {MICRO_TYPE_BUS, -5'sd12, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BP, MICRO_MOV_SP};
+        // rom[38] = {MICRO_TYPE_BUS, -5'sd14, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_IX, MICRO_MOV_SP};
+        // rom[38] = {MICRO_TYPE_BUS, -5'sd16, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_IY, MICRO_MOV_SP};
+        // // @todo: Perhaps add a MICRO_MOV_CONST, and take the constant from
+        // // the 5-bit unused field.
+        // rom[38] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB, 2'b10, MICRO_MOV_16, MICRO_MOV_SP};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -478,6 +501,11 @@ module execution_unit
             translation_rom[{5'b0101_1, i[2:0]}] = 9'd31;        // POP reg16
 
         translation_rom[8'b1100_1011] = 9'd32;                   // RET (segment-external call)
+
+        translation_rom[8'b1110_0010] = 9'd36;                   // DBNZ loop
+
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1000_010, i[0]}] = 9'd38;        // TEST rm -> r
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -659,8 +687,20 @@ module execution_unit
     reg [15:0] pc_write_data; // temp register which can be used as read source.
 
     // @note: Also run next microinstruction when we have alu writeback.
-    wire alu_mem_wb = (micro_op_type[2:1] == MICRO_TYPE_ALU && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod != 2'b11 && alu_op != ALUOP_CMP);
-    wire alu_reg_wb = (micro_op_type[2:1] == MICRO_TYPE_ALU && (micro_alu_use == MICRO_ALU_USE_RESULT) && mod == 2'b11 && alu_op != ALUOP_CMP);
+    wire alu_mem_wb = (
+        (micro_op_type[2:1] == MICRO_TYPE_ALU) &&
+        (micro_alu_use == MICRO_ALU_USE_RESULT) &&
+        (alu_op != ALUOP_CMP) &&
+        ((micro_mov_src == MICRO_MOV_RM) && need_modrm && (mod != 2'b11))
+    );
+
+    wire alu_reg_wb = (
+        (micro_op_type[2:1] == MICRO_TYPE_ALU) &&
+        (micro_alu_use == MICRO_ALU_USE_RESULT) &&
+        (alu_op != ALUOP_CMP) &&
+        (!need_modrm || (mod == 2'b11))
+    );
+
     reg branch_taken = 0;
     assign instruction_nearly_done = micro_op[10];
     wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken);
@@ -785,6 +825,8 @@ module execution_unit
                 // ** Handle move source reading **
                 if(micro_mov_src == MICRO_MOV_RM && mod != 2'b11)
                 begin
+                    if(!need_modrm)
+                        error <= `__LINE__;
                     // Source is memory
                     bus_address     <= physical_address;
                     bus_command     <= BUS_COMMAND_MEM_READ;
@@ -867,10 +909,7 @@ module execution_unit
                 end
                 else if(micro_mov_dst == MICRO_MOV_ADD)
                 begin
-                    // @todo, @important: Add segment! Probably need an
-                    // additional register as a target of MICRO_MOV_ADD, and
-                    // when running a bus command, possibly add that register
-                    // to the bus_address.
+                    // @todo: Do we need to handle prefix?
                     case(micro_bus_seg)
                         MICRO_BUS_SEG_ZERO:
                             bus_address <= {4'd0, mov_data} + micro_bus_disp_se;
@@ -1090,6 +1129,8 @@ module execution_unit
                 begin
                     if((micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R) && mod == 2'b11)
                     begin
+                        if(!need_modrm)
+                            error <= `__LINE__;
                         // Destination is register specified by modrm.
                         reg_dst      <= src_operand[2:0];
                         mov_dst_size <= byte_word_field;
@@ -1433,6 +1474,17 @@ module execution_unit
                                         begin
                                         end
                                     endcase
+                                end
+
+                                MICRO_JMP_NZ:
+                                begin
+                                    if(alu_flags_r[ALU_FLAG_Z] == 0)
+                                    begin
+                                        microprogram_counter <= 0;
+                                        microaddress <= jump_table[micro_jmp_destination];
+                                        branch_taken <= 1;
+                                        state <= STATE_EXECUTE;
+                                    end
                                 end
 
                                 MICRO_JMP_UC:

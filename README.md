@@ -4,11 +4,11 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-It seems evident that we need to handle EEPROM commands to progress.
+Are the values in ... being pushed?
 
 # TODO
 
-* Handle EEPROM commands in verilator simulation.
+* Need to implement upper byte enable (UBE) bit when writing to bus.
 * Find a way to get a known waveform for the BIOS.
 * I often do the check `mod != 2'b11`, but modrm is not always present. We should add a check for need_modrm just to be sure.
 * Set alu flags in PSW?
