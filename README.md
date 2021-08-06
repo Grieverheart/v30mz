@@ -9,12 +9,12 @@ Need to correctly and consequently set the source and destination of the alu ope
 source at least significant operand, and destination at most significant operand. Then we probably only need to change the order in the
 microinstructions. For example, 
 
-```c
+```verilog
 rom[16] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_IMM, MICRO_MOV_AW};
 ```
 would become
 
-```c
+```verilog
 rom[16] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_AW, MICRO_MOV_IMM};
 ```
 Also when doing alu writeback, we need to use the correct operand.
