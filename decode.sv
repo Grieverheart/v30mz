@@ -286,8 +286,8 @@ module decode
                 need_disp  <= 0;
                 need_imm   <= 0;
                 imm_size   <= 0;
-                dst        <= 0;
                 src        <= {1'b0, opcode[2:0]};
+                dst        <= {1'b0, opcode[2:0]};
             end
 
             8'b0100_1???: // DEC reg16
@@ -296,8 +296,8 @@ module decode
                 need_disp  <= 0;
                 need_imm   <= 0;
                 imm_size   <= 0;
-                dst        <= 0;
                 src        <= {1'b0, opcode[2:0]};
+                dst        <= {1'b0, opcode[2:0]};
             end
 
             8'b0101_0???: // PUSH reg16

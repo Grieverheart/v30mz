@@ -331,7 +331,7 @@ module execution_unit
         for (int i = 0; i < 512; i++)
             rom[i] = 0;
 
-        //        type,             b,                    b                      nl/nx, destination,    source
+        //        type,             b,                    b                            nl/nx, destination,    source
         rom[0]  = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE}; // NOP
 
         rom[1]  = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_R,    MICRO_MOV_RM};
@@ -823,10 +823,8 @@ module execution_unit
             else
             begin
                 // ** Handle move source reading **
-                if(micro_mov_src == MICRO_MOV_RM && mod != 2'b11)
+                if(micro_mov_src == MICRO_MOV_RM && need_modrm && mod != 2'b11)
                 begin
-                    if(!need_modrm)
-                        error <= `__LINE__;
                     // Source is memory
                     bus_address     <= physical_address;
                     bus_command     <= BUS_COMMAND_MEM_READ;
@@ -835,7 +833,7 @@ module execution_unit
                     mov_from     <= READ_SRC_MEM;
                     mov_src_size <= byte_word_field;
                 end
-                else if(micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R)
+                else if((micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R) && (!need_modrm || mod == 2'b11))
                 begin
                     // Source is register specified by modrm.
                     reg_src      <= src_operand[2:0];
@@ -1127,12 +1125,13 @@ module execution_unit
                 // ** Handle alu register writeback **
                 if(micro_op_type[2:1] == MICRO_TYPE_ALU && micro_alu_use == MICRO_ALU_USE_RESULT)
                 begin
-                    if((micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R) && mod == 2'b11)
+                    if(
+                        (micro_mov_src == MICRO_MOV_RM || micro_mov_src == MICRO_MOV_R) &&
+                        (!need_modrm || mod == 2'b11)
+                    )
                     begin
-                        if(!need_modrm)
-                            error <= `__LINE__;
                         // Destination is register specified by modrm.
-                        reg_dst      <= src_operand[2:0];
+                        reg_dst      <= dst_operand[2:0];
                         mov_dst_size <= byte_word_field;
                         regfile_we_r <= 1;
                     end
@@ -1224,7 +1223,7 @@ module execution_unit
                                     ((opcode[7:2] == 6'b110100)?  ALUOP_ROL + {2'b0, regm}:
                                     ((opcode[7:1] == 7'b1100000)? ALUOP_ROL + {2'b0, regm}:
                                     ((opcode[7:1] == 7'b1111111)? ALUOP_INC + {2'b0, regm}:
-                                    ((opcode[7:3] == 5'b01000)?   ALUOP_INC + {2'b0, opcode[5:3]}:
+                                    ((opcode[7:4] == 4'b0100)?    ALUOP_INC + {2'b0, opcode[5:3]}:
                                                                   {2'b0, opcode[5:3]}))));
 
                             MICRO_ALU_OP_AND:
