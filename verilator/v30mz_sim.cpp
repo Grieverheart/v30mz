@@ -59,7 +59,7 @@ int main(int argc, char** argv, char** env)
 
     int timestamp = 0;
     bool data_sent = false;
-    while (timestamp < 200000 && !Verilated::gotFinish())
+    while (timestamp < 400000 && !Verilated::gotFinish())
     {
         v30mz->clk = 0;
         v30mz->eval();
@@ -71,6 +71,11 @@ int main(int argc, char** argv, char** env)
 
         if(timestamp >= 8)
             v30mz->reset = 0;
+
+        if(v30mz->v30mz__DOT__execution_unit_inst__DOT__error > 0)
+        {
+            printf("Error at t = %d in line %d. PC = 0x%x\n", timestamp, v30mz->v30mz__DOT__execution_unit_inst__DOT__error, v30mz->v30mz__DOT__PC);
+        }
 
         // At rising edge of clock
         if(data_sent)

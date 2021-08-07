@@ -411,6 +411,8 @@ module execution_unit
         rom[37] = {MICRO_TYPE_JMP, 5'd0, MICRO_JMP_NZ, 4'h0,                           2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
         rom[38] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_R, MICRO_MOV_RM};
+        rom[39] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
+        rom[40] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_AW, MICRO_MOV_IMM};
 
         // ** Implementation of PUSH R. **
         //
@@ -507,6 +509,12 @@ module execution_unit
 
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1000_010, i[0]}] = 9'd38;        // TEST rm -> r
+
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1111_011, i[0]}] = 9'd39;        // TEST imm -> rm
+
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1010_100, i[0]}] = 9'd40;        // TEST imm -> acc
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -694,7 +702,7 @@ module execution_unit
         (micro_op_type[2:1] == MICRO_TYPE_ALU) &&
         (micro_alu_use == MICRO_ALU_USE_RESULT) &&
         (alu_op != ALUOP_CMP) &&
-        ((micro_mov_src == MICRO_MOV_RM) && need_modrm && (mod != 2'b11))
+        ((micro_op[9:5] == MICRO_MOV_RM) && need_modrm && (mod != 2'b11))
     );
 
     wire alu_reg_wb = (
@@ -1139,9 +1147,8 @@ module execution_unit
                 end
 
                 // ** Handle alu register writeback **
-                if(micro_op_type[2:1] == MICRO_TYPE_ALU && micro_alu_use == MICRO_ALU_USE_RESULT)
+                if(micro_op_type[2:1] == MICRO_TYPE_ALU && alu_reg_wb)
                 begin
-                    // @todo: Memory writeback.
                     if(
                         (micro_op[9:5] == MICRO_MOV_RM || micro_op[9:5] == MICRO_MOV_R) &&
                         (!need_modrm || mod == 2'b11)
