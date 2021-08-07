@@ -430,7 +430,10 @@ module execution_unit
         // rom[38] = {MICRO_TYPE_BUS, -5'sd14, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_IX, MICRO_MOV_SP};
         // rom[38] = {MICRO_TYPE_BUS, -5'sd16, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_IY, MICRO_MOV_SP};
         // // @todo: Perhaps add a MICRO_MOV_CONST, and take the constant from
-        // // the 5-bit unused field.
+        // // the 5-bit unused field. Unfortunately 5 bits are not enough for
+        // // e.g. POP R where a value +16 is needed (range [-16, 15]). Could
+        // // instead use it as a power with the sign being the sign of the
+        // // final constant.
         // rom[38] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB, 2'b10, MICRO_MOV_16, MICRO_MOV_SP};
 
         for (int i = 0; i < 256; i++)

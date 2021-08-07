@@ -77,6 +77,11 @@ int main(int argc, char** argv, char** env)
             printf("Error at t = %d in line %d. PC = 0x%x\n", timestamp, v30mz->v30mz__DOT__execution_unit_inst__DOT__error, v30mz->v30mz__DOT__PC);
         }
 
+        if(v30mz->v30mz__DOT__execution_unit_inst__DOT__decode_inst__DOT__instruction_not_decoded > 0)
+        {
+            printf("Instruction not decoded at t = %d in line %d. PC = 0x%x\n", timestamp, v30mz->v30mz__DOT__execution_unit_inst__DOT__decode_inst__DOT__instruction_not_decoded , v30mz->v30mz__DOT__PC);
+        }
+
         // At rising edge of clock
         if(data_sent)
         {

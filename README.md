@@ -4,10 +4,11 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Stuck at instruction 0x80 at 0xCC. Due to the change in the way we handle alu microinstruction operands, we need to handle memory in alu writeback.
+Stuck at PUSH R instruction, 0x60, at 0x7A7.
 
 # TODO
 
+* Implement alu constant (source?) operand in the unused 5 bits of the microinstruction. But 5 bits are not really enough for signed 16 constant. We do have another 2 unused microinstruction bits, although in the future we might need to use one for enabling/disabling flag updating.
 * Need to implement upper byte enable (UBE) bit when writing to bus.
 * Find a way to get a known waveform for the BIOS.
 * Set alu flags in PSW?
