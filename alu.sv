@@ -198,7 +198,7 @@ module alu
 
             ALUOP_AND:
             begin
-                R = A & B;
+                R = B & A;
                 flags[ALU_FLAG_CY] = 0;
                 flags[ALU_FLAG_V]  = 0;
                 flags[ALU_FLAG_Z]  = (R == 0);
@@ -210,11 +210,11 @@ module alu
             ALUOP_ADD:
             begin
                 if(alu_op == ALUOP_ADD)
-                    {flags[ALU_FLAG_CY], R} = {1'b0, A} + {1'b0, B};
+                    {flags[ALU_FLAG_CY], R} = {1'b0, B} + {1'b0, A};
                 else
-                    R = A + B;
+                    R = B + A;
 
-                flags[ALU_FLAG_V] = (A[msb] == B[msb]) && (R[msb] != A[msb]);
+                flags[ALU_FLAG_V] = (A[msb] == B[msb]) && (R[msb] != B[msb]);
                 // can we do this? flags[ALU_FLAG_V] = (R[msb] == flags[ALU_FLAG_CY]);
                 flags[ALU_FLAG_Z] = (R == 0);
                 flags[ALU_FLAG_P] = parity(R);
@@ -225,11 +225,11 @@ module alu
             ALUOP_CMP,
             ALUOP_SUB:
             begin
-                R = A - B;
+                R = B - A;
                 if(alu_op != ALUOP_DEC)
-                    flags[ALU_FLAG_CY] = (A < B);
+                    flags[ALU_FLAG_CY] = (B < A);
 
-                flags[ALU_FLAG_V] = (A[msb] != B[msb]) && (R[msb] != A[msb]);
+                flags[ALU_FLAG_V] = (A[msb] != B[msb]) && (R[msb] != B[msb]);
                 flags[ALU_FLAG_Z] = (R == 0);
                 flags[ALU_FLAG_P] = parity(R);
                 flags[ALU_FLAG_S] = R[msb];
@@ -237,7 +237,7 @@ module alu
 
             ALUOP_XOR:
             begin
-                R = A ^ B;
+                R = B ^ A;
 
                 flags[ALU_FLAG_CY] = 0;
                 flags[ALU_FLAG_V]  = 0;
@@ -249,30 +249,30 @@ module alu
 
             ALUOP_ROL:
             begin
-                R = rol(size, A, B);
+                R = rol(size, B, A);
                 flags[ALU_FLAG_CY] = R[msb];
                 if(A[msb] == R[msb]) flags[ALU_FLAG_V] = 0;
             end
 
             ALUOP_ROR:
             begin
-                R = ror(size, A, B);
+                R = ror(size, B, A);
                 flags[ALU_FLAG_CY] = R[0];
                 if(A[msb] == R[msb]) flags[ALU_FLAG_V] = 0;
             end
 
             ALUOP_SHL:
             begin
-                if(B == 1)
+                if(A == 1)
                 begin
-                    R = {A[14:0], 1'b0};
-                    flags[ALU_FLAG_CY] = A[msb];
-                    if(A[msb] == A[msb-1]) flags[ALU_FLAG_V] = 0;
+                    R = {B[14:0], 1'b0};
+                    flags[ALU_FLAG_CY] = B[msb];
+                    if(B[msb] == B[msb-1]) flags[ALU_FLAG_V] = 0;
                 end
                 else
                 begin
-                    R = (A << B[4:0]);
-                    if(B > 0) flags[ALU_FLAG_CY] = A[msb - B[4:0] + 1];
+                    R = (B << A[4:0]);
+                    if(A > 0) flags[ALU_FLAG_CY] = B[msb - A[4:0] + 1];
                 end
 
                 flags[ALU_FLAG_Z] = (R == 0);
@@ -282,20 +282,20 @@ module alu
 
             ALUOP_SHR:
             begin
-                if(B == 1)
+                if(A == 1)
                 begin
                     R = (size == 0)?
-                        {A[15:8], 1'b0, A[7:1]}:
-                        {1'b0, A[15:1]};
+                        {B[15:8], 1'b0, B[7:1]}:
+                        {1'b0, B[15:1]};
 
-                    flags[ALU_FLAG_CY] = A[0];
+                    flags[ALU_FLAG_CY] = B[0];
 
-                    if(A[msb] == 0) flags[ALU_FLAG_V] = 0;
+                    if(B[msb] == 0) flags[ALU_FLAG_V] = 0;
                 end
                 else
                 begin
-                    R = (A >> B[4:0]);
-                    if(B > 0) flags[ALU_FLAG_CY] = A[B[4:0]-1];
+                    R = (B >> A[4:0]);
+                    if(A > 0) flags[ALU_FLAG_CY] = B[A[4:0]-1];
                 end
 
                 flags[ALU_FLAG_Z] = (R == 0);
