@@ -62,16 +62,17 @@ module execution_unit
         STATE_EXECUTE        = 3'd6;
 
     localparam [3:0]
-        READ_SRC_REG  = 4'd0,
-        READ_SRC_SREG = 4'd1,
-        READ_SRC_PC   = 4'd2,
-        READ_SRC_IMM  = 4'd3,
-        READ_SRC_DISP = 4'd4,
-        READ_SRC_MEM  = 4'd5,
-        READ_SRC_ALU  = 4'd6,
-        READ_SRC_TMP  = 4'd7,
-        READ_SRC_ONES = 4'd8,
-        READ_SRC_ZERO = 4'd9;
+        READ_SRC_REG   = 4'd0,
+        READ_SRC_SREG  = 4'd1,
+        READ_SRC_PC    = 4'd2,
+        READ_SRC_IMM   = 4'd3,
+        READ_SRC_DISP  = 4'd4,
+        READ_SRC_MEM   = 4'd5,
+        READ_SRC_ALU   = 4'd6,
+        READ_SRC_TMP   = 4'd7,
+        READ_SRC_LATCH = 4'd8,
+        READ_SRC_ONES  = 4'd9,
+        READ_SRC_ZERO  = 4'd10;
 
     //localparam [2:0]
     //    LJUMP_COND_UNC = 3'd0,
@@ -207,10 +208,11 @@ module execution_unit
         MICRO_MOV_IMM   = 5'h04,
         MICRO_MOV_ADD   = 5'h04,
 
-        MICRO_MOV_ALU_A = 5'h06,
-        MICRO_MOV_ALU_R = 5'h07,
-        MICRO_MOV_ZERO  = 5'h08,
-        MICRO_MOV_ONES  = 5'h09,
+        MICRO_MOV_ALU_A = 5'h06, // dst
+        MICRO_MOV_ALU_R = 5'h07, // src
+        MICRO_MOV_ZERO  = 5'h08, // dst
+        MICRO_MOV_ONES  = 5'h09, // dst
+        MICRO_MOV_TMP   = 5'h10, // src/dst
 
         // all registers:
         MICRO_MOV_AL    = 5'h11,
@@ -414,6 +416,15 @@ module execution_unit
         rom[39] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
         rom[40] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_AW, MICRO_MOV_IMM};
 
+        rom[41] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_TMP, MICRO_MOV_SP};
+        rom[42] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_AW, MICRO_MOV_SP};
+        rom[43] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_CW, MICRO_MOV_SP};
+        rom[44] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_DW, MICRO_MOV_SP};
+        rom[45] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BW, MICRO_MOV_SP};
+        rom[46] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_TMP, MICRO_MOV_SP};
+        rom[47] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BP, MICRO_MOV_SP};
+        rom[48] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b01, MICRO_MOV_IX, MICRO_MOV_SP};
+        rom[49] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_IY, MICRO_MOV_SP};
         // ** Implementation of PUSH R. **
         //
         // @note: Another possibility is to save SP to temp, and decrement SP
@@ -519,6 +530,8 @@ module execution_unit
         for (int i = 0; i < 2; i++)
             translation_rom[{7'b1010_100, i[0]}] = 9'd40;        // TEST imm -> acc
 
+        translation_rom[8'b0110_0000] = 9'd41;                   // PUSH R
+
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
 
@@ -539,7 +552,7 @@ module execution_unit
     reg regfile_we_r_secondary;
     wire regfile_we_secondary = regfile_we_r_secondary && (!read_write_wait || bus_command_done);
     reg [2:0] regfile_write_id_secondary;
-    wire [15:0] regfile_write_data_secondary = reg_tmp;
+    wire [15:0] regfile_write_data_secondary = reg_tmp_bus;
 
     wire [15:0] registers[0:7];
 
@@ -552,26 +565,32 @@ module execution_unit
     reg mov_dst_size;
     reg [3:0] mov_from;
 
-    wire [15:0] reg_read =
+    wire [15:0] mov_data_temp =
          (mov_from == READ_SRC_SREG) ? segment_registers[reg_src[1:0]]:
         ((mov_from == READ_SRC_PC)   ? PC:
-        ((mov_from == READ_SRC_TMP)  ? reg_tmp:
         ((mov_from == READ_SRC_ZERO) ? 0:
         ((mov_from == READ_SRC_ONES) ? 1:
-        ((mov_src_size == 1)         ? registers[reg_src]:
-        ((reg_src[2]   == 0)         ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
-                                       {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]}))))));
-
-    // @todo: This is not a very nice way to handle mov_src_size.
-    wire [15:0] mov_data_alu =
-         (mov_from == READ_SRC_MEM)  ? ((mov_src_size == 1) ? data_in: {8'd0, data_in[7:0]}):
+        ((mov_from == READ_SRC_MEM)  ? ((mov_src_size == 1) ? data_in: {8'd0, data_in[7:0]}):
         ((mov_from == READ_SRC_IMM)  ? ((mov_src_size == 1) ? imm: {8'd0, imm[7:0]}):
         ((mov_from == READ_SRC_DISP) ? disp_sign_extended:
-                                       reg_read));
+        ((mov_from == READ_SRC_TMP)  ? ((mov_src_size == 1) ? temp_reg: {8'd0, temp_reg[7:0]}):
+        ((mov_src_size == 1)         ? registers[reg_src]:
+        ((reg_src[2]   == 0)         ? {8'd0, registers[{1'd0, reg_src[1:0]}][7:0]}:
+                                       {8'd0, registers[{1'd0, reg_src[1:0]}][15:8]})))))))));
 
+    //wire [15:0] mov_data_alu =
+    //    (mov_from == READ_SRC_TMP)  ? ((mov_src_size == 1) ? reg_tmp: {8'd0, reg_tmp[7:0]}):
+    //                                   mov_data_temp;
+
+    //wire [15:0] mov_data_reg_tmp =
+    //    (mov_from == READ_SRC_ALU)  ? ((mov_src_size == 1) ? alu_r: {8'd0, alu_r[7:0]}):
+    //                                   mov_data_temp;
+
+    // @todo: This is not a very nice way to handle mov_src_size.
     wire [15:0] mov_data =
-         (mov_from == READ_SRC_ALU)  ? ((mov_src_size == 1) ? alu_r: {8'd0, alu_r[7:0]}):
-                                        mov_data_alu;
+         (mov_from == READ_SRC_LATCH)  ? ((mov_src_size == 1) ? temp_latch: {8'd0, temp_latch[7:0]}):
+        ((mov_from == READ_SRC_ALU)  ? ((mov_src_size == 1) ? alu_r: {8'd0, alu_r[7:0]}):
+                                       mov_data_temp);
 
     assign regfile_write_id = (mov_src_size == 1) ? reg_dst: {1'd0, reg_dst[1:0]};
 
@@ -697,7 +716,9 @@ module execution_unit
 
     assign micro_op = rom[microaddress + {5'd0, microprogram_counter}];
 
-    reg [15:0] reg_tmp; // temp register which can be used as read source.
+    reg [15:0] temp_reg; // temp register.
+    reg [15:0] temp_latch; // temp latch used to set the value of the temp_reg or of other registers.
+    reg [15:0] reg_tmp_bus; // register used by bus for address calculation storage.
     reg [15:0] pc_write_data; // temp register which can be used as read source.
 
     // @note: Also run next microinstruction when we have alu writeback.
@@ -796,11 +817,11 @@ module execution_unit
                         else if(instruction_step == 1 && bus_command_done)
                         begin
                             reg_dst      <= 7;
-                            mov_from     <= READ_SRC_TMP;
+                            mov_from     <= READ_SRC_LATCH;
                             mov_src_size <= 1;
                             mov_dst_size <= 1;
                             regfile_we_r <= 1;
-                            reg_tmp      <= (control_flags[CTRL_FLAG_DIR] == 0)? registers[7] + 2: registers[7] - 2;
+                            temp_latch   <= (control_flags[CTRL_FLAG_DIR] == 0)? registers[7] + 2: registers[7] - 2;
                         end
                         else if(instruction_step == 2 && instruction_repeat)
                         begin
@@ -902,6 +923,11 @@ module execution_unit
                     mov_src_size <= 1;
                     mov_from     <= READ_SRC_ONES;
                 end
+                else if(micro_mov_src == MICRO_MOV_TMP)
+                begin
+                    mov_src_size <= 1;
+                    mov_from     <= READ_SRC_TMP;
+                end
                 else if(micro_mov_src == MICRO_MOV_AL || micro_mov_src == MICRO_MOV_AH)
                 begin
                     // Source is byte register
@@ -947,9 +973,14 @@ module execution_unit
                     endcase
                     mov_dst_size <= 1;
                 end
+                else if(micro_mov_dst == MICRO_MOV_TMP)
+                begin
+                    temp_latch   <= mov_data_temp;
+                    mov_dst_size <= 1;
+                end
                 else if(micro_mov_dst == MICRO_MOV_ALU_A)
                 begin
-                    alu_a <= mov_data_alu;
+                    alu_a <= mov_data_temp;
                     mov_dst_size <= byte_word_field;
                 end
                 else if(micro_mov_dst >= MICRO_MOV_AW)
@@ -1081,6 +1112,9 @@ module execution_unit
 
                         MICRO_MOV_IMM:
                             data_out <= imm;
+
+                        MICRO_MOV_TMP:
+                            data_out <= temp_reg;
 
                         default:
                         begin
@@ -1217,7 +1251,7 @@ module execution_unit
                                 begin
                                     regfile_we_r_secondary <= 1;
                                     regfile_write_id_secondary <= {micro_mov_src - MICRO_MOV_AL}[2:0] << 2;
-                                    reg_tmp <= (micro_mov_src == MICRO_MOV_AL)?
+                                    reg_tmp_bus <= (micro_mov_src == MICRO_MOV_AL)?
                                         {8'd0, registers[{micro_mov_src - MICRO_MOV_AL}[2:0]][7:0]} + micro_bus_ind_offset:
                                         {8'd0, registers[{micro_mov_src - MICRO_MOV_AL}[2:0]][15:8]} + micro_bus_ind_offset;
                                 end
@@ -1225,7 +1259,7 @@ module execution_unit
                                 begin
                                     regfile_we_r_secondary <= 1;
                                     regfile_write_id_secondary <= {micro_mov_src - MICRO_MOV_AW}[2:0];
-                                    reg_tmp <= registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] + micro_bus_ind_offset;
+                                    reg_tmp_bus <= registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] + micro_bus_ind_offset;
                                 end
                                 else
                                     error <= `__LINE__;
@@ -1371,6 +1405,9 @@ module execution_unit
 
                 if(micro_mov_dst == MICRO_MOV_PC)
                     PC <= mov_data;
+
+                if(micro_mov_dst == MICRO_MOV_TMP)
+                    temp_reg <= temp_latch;
 
                 // @todo: Do the same for alu writeback?
                 if(micro_bus_read && micro_op[9:5] == MICRO_MOV_PC)

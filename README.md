@@ -4,7 +4,7 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Stuck at PUSH R instruction, 0x60, at 0x7A7.
+Currently stuck at MOVBK instruction, 0xA5, at 0x7D1.
 
 # TODO
 
