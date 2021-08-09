@@ -4,10 +4,11 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Currently stuck at MOVBK instruction, 0xA5, at 0x7D1.
+Implemented STMW, but gtkwave is having trouble with the waveform.
 
 # TODO
 
+* Can we implement STMW in microcode?
 * Implement alu constant (source?) operand in the unused 5 bits of the microinstruction. But 5 bits are not really enough for signed 16 constant. We do have another 2 unused microinstruction bits, although in the future we might need to use one for enabling/disabling flag updating.
 * Need to implement upper byte enable (UBE) bit when writing to bus.
 * Find a way to get a known waveform for the BIOS.

@@ -425,27 +425,10 @@ module execution_unit
         rom[47] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BP, MICRO_MOV_SP};
         rom[48] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b01, MICRO_MOV_IX, MICRO_MOV_SP};
         rom[49] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_IY, MICRO_MOV_SP};
-        // ** Implementation of PUSH R. **
-        //
-        // @note: Another possibility is to save SP to temp, and decrement SP
-        // with each bus operation. Although MICRO_MOV_TMP is not implemented
-        // yet. Both options can be done in 9 clock cycles as it should.
-        //
-        // rom[38] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_AW, MICRO_MOV_SP};
-        // rom[38] = {MICRO_TYPE_BUS, -5'sd4, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_CW, MICRO_MOV_SP};
-        // rom[38] = {MICRO_TYPE_BUS, -5'sd6, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_DW, MICRO_MOV_SP};
-        // rom[38] = {MICRO_TYPE_BUS, -5'sd8, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BW, MICRO_MOV_SP};
-        // // @todo: Is this possible?
-        // rom[38] = {MICRO_TYPE_BUS, -5'sd10, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_SP, MICRO_MOV_SP};
-        // rom[38] = {MICRO_TYPE_BUS, -5'sd12, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BP, MICRO_MOV_SP};
-        // rom[38] = {MICRO_TYPE_BUS, -5'sd14, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_IX, MICRO_MOV_SP};
-        // rom[38] = {MICRO_TYPE_BUS, -5'sd16, MICRO_BUS_IND_NONE, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_IY, MICRO_MOV_SP};
-        // // @todo: Perhaps add a MICRO_MOV_CONST, and take the constant from
-        // // the 5-bit unused field. Unfortunately 5 bits are not enough for
-        // // e.g. POP R where a value +16 is needed (range [-16, 15]). Could
-        // // instead use it as a power with the sign being the sign of the
-        // // final constant.
-        // rom[38] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_SUB, 2'b10, MICRO_MOV_16, MICRO_MOV_SP};
+
+        rom[50] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS0, MICRO_BUS_MEM_READ,  2'b00, MICRO_MOV_TMP, MICRO_MOV_IX};
+        rom[51] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS1, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_TMP, MICRO_MOV_IY};
+        rom[52] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_DEC, 2'b10, MICRO_MOV_CW, MICRO_MOV_ONES};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -531,6 +514,8 @@ module execution_unit
             translation_rom[{7'b1010_100, i[0]}] = 9'd40;        // TEST imm -> acc
 
         translation_rom[8'b0110_0000] = 9'd41;                   // PUSH R
+
+        translation_rom[8'b1010_0101] = 9'd50;                   // MOVBK
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -738,7 +723,7 @@ module execution_unit
 
     reg branch_taken = 0;
     assign instruction_nearly_done = micro_op[10];
-    wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken);
+    wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken && (!instruction_repeat || registers[1] > 0));
 
     wire [2:0] micro_op_type   = micro_op[26:24];
 
@@ -960,7 +945,7 @@ module execution_unit
                 end
                 else if(micro_mov_dst == MICRO_MOV_ADD)
                 begin
-                    // @todo: Do we need to handle prefix?
+                    // @todo @important: Do we need to handle prefix?
                     case(micro_bus_seg)
                         MICRO_BUS_SEG_ZERO:
                             bus_address <= {4'd0, mov_data} + micro_bus_disp_se;
@@ -1174,6 +1159,12 @@ module execution_unit
                             pc_write_data <= data_in;
                         end
 
+                        MICRO_MOV_TMP:
+                        begin
+                            temp_latch   <= data_in;
+                            mov_dst_size <= 1;
+                        end
+
                         // @todo: Segment registers.
 
                         MICRO_MOV_NONE:;
@@ -1265,8 +1256,30 @@ module execution_unit
                                     error <= `__LINE__;
                             end
 
-                            // @todo: Implement.
-                            //MICRO_BUS_IND_BL,
+                            MICRO_BUS_IND_BL:
+                            begin
+                                if(micro_mov_src >= MICRO_MOV_AW && micro_mov_src <= MICRO_MOV_IY)
+                                begin
+                                    regfile_we_r_secondary <= 1;
+                                    regfile_write_id_secondary <= {micro_mov_src - MICRO_MOV_AW}[2:0];
+
+                                    if(byte_word_field == 1)
+                                    begin
+                                        reg_tmp_bus <= (control_flags[CTRL_FLAG_DIR] == 0)?
+                                            registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] + 2:
+                                            registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] - 2;
+                                    end
+                                    else
+                                    begin
+                                        reg_tmp_bus <= (control_flags[CTRL_FLAG_DIR] == 0)?
+                                            registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] + 1:
+                                            registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] - 1;
+                                    end
+                                end
+                                else
+                                    error <= `__LINE__;
+                            end
+
                             default:
                                 error <= `__LINE__;
                         endcase
@@ -1436,6 +1449,7 @@ module execution_unit
                         8'hFC:
                             control_flags[CTRL_FLAG_DIR] <= 0;
 
+                        8'hA5,
                         8'hAB:
                         begin
                             // @todo: Check if the second check is superfluous.
