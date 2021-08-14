@@ -271,6 +271,9 @@ module v30mz
                 prefetch_request <= 1;
             end
 
+            // @todo: Try and see if separating the always_latch into two,
+            // one for bus_status and one for prefetch_request, fixes the
+            // issue with the feedback loop.
             else if(eu_bus_command == BUS_COMMAND_MEM_READ)
                 bus_status <= 4'b1001;
 

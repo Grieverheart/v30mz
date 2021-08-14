@@ -208,32 +208,33 @@ module execution_unit
         MICRO_MOV_IMM   = 5'h04,
         MICRO_MOV_ADD   = 5'h04,
 
-        MICRO_MOV_ALU_A = 5'h06, // dst
-        MICRO_MOV_ALU_R = 5'h07, // src
-        MICRO_MOV_ZERO  = 5'h08, // dst
-        MICRO_MOV_ONES  = 5'h09, // dst
-        MICRO_MOV_TMP   = 5'h10, // src/dst
+        MICRO_MOV_ALU_A = 5'h05, // dst
+        MICRO_MOV_ALU_R = 5'h05, // src
+
+        MICRO_MOV_ZERO  = 5'h06, // dst
+        MICRO_MOV_ONES  = 5'h07, // dst
+        MICRO_MOV_TMP   = 5'h09, // src/dst
 
         // all registers:
-        MICRO_MOV_AL    = 5'h11,
-        MICRO_MOV_AH    = 5'h12,
+        MICRO_MOV_AL    = 5'h08,
+        MICRO_MOV_AH    = 5'h0c,
 
-        MICRO_MOV_AW    = 5'h13,
-        MICRO_MOV_CW    = 5'h14,
-        MICRO_MOV_DW    = 5'h15,
-        MICRO_MOV_BW    = 5'h16,
+        MICRO_MOV_AW    = 5'h10,
+        MICRO_MOV_CW    = 5'h11,
+        MICRO_MOV_DW    = 5'h12,
+        MICRO_MOV_BW    = 5'h13,
 
-        MICRO_MOV_SP    = 5'h17,
-        MICRO_MOV_BP    = 5'h18,
-        MICRO_MOV_IX    = 5'h19,
-        MICRO_MOV_IY    = 5'h1a,
+        MICRO_MOV_SP    = 5'h14,
+        MICRO_MOV_BP    = 5'h15,
+        MICRO_MOV_IX    = 5'h16,
+        MICRO_MOV_IY    = 5'h17,
 
-        MICRO_MOV_DS1   = 5'h1b,
-        MICRO_MOV_PS    = 5'h1c,
-        MICRO_MOV_SS    = 5'h1d,
-        MICRO_MOV_DS0   = 5'h1e,
+        MICRO_MOV_DS1   = 5'h18,
+        MICRO_MOV_PS    = 5'h19,
+        MICRO_MOV_SS    = 5'h1a,
+        MICRO_MOV_DS0   = 5'h1b,
 
-        MICRO_MOV_PC    = 5'h1f;
+        MICRO_MOV_PC    = 5'h1c;
 
     localparam [3:0]
         MICRO_MISC_OP_A_NONE  = 4'h0,
@@ -877,7 +878,7 @@ module execution_unit
                     mov_from     <= READ_SRC_ALU;
                     mov_src_size <= 1;
                 end
-                else if(micro_mov_src >= MICRO_MOV_AW)
+                else if(micro_mov_src >= MICRO_MOV_AW && micro_mov_src <= MICRO_MOV_PC)
                 begin
                     // Source is word register
                     mov_src_size  <= 1;
@@ -890,12 +891,12 @@ module execution_unit
                     else if(micro_mov_src >= MICRO_MOV_DS1)
                     begin
                         mov_from <= READ_SRC_SREG;
-                        reg_src  <= {micro_mov_src - MICRO_MOV_DS1}[2:0];
+                        reg_src  <= micro_mov_src[2:0];
                     end
                     else
                     begin
                         mov_from <= READ_SRC_REG;
-                        reg_src  <= {micro_mov_src - MICRO_MOV_AW}[2:0];
+                        reg_src  <= micro_mov_src[2:0];
                     end
                 end
                 else if(micro_mov_src == MICRO_MOV_ZERO)
@@ -916,7 +917,7 @@ module execution_unit
                 else if(micro_mov_src == MICRO_MOV_AL || micro_mov_src == MICRO_MOV_AH)
                 begin
                     // Source is byte register
-                    reg_src <= {micro_mov_src - MICRO_MOV_AL}[2:0] << 2;
+                    reg_src <= micro_mov_src[2:0];
                     mov_src_size <= 0;
                 end
                 else if(micro_mov_src != MICRO_MOV_NONE)
@@ -968,7 +969,7 @@ module execution_unit
                     alu_a <= mov_data_temp;
                     mov_dst_size <= byte_word_field;
                 end
-                else if(micro_mov_dst >= MICRO_MOV_AW)
+                else if(micro_mov_dst >= MICRO_MOV_AW && micro_mov_dst <= MICRO_MOV_PC)
                 begin
                     // Destination is word register
                     mov_dst_size <= 1;
@@ -981,19 +982,19 @@ module execution_unit
                     else if(micro_mov_dst >= MICRO_MOV_DS1)
                     begin
                         sregfile_we_r <= 1;
-                        reg_dst     <= {micro_mov_dst - MICRO_MOV_DS1}[2:0];
+                        reg_dst       <= micro_mov_dst[2:0];
                     end
                     else
                     begin
                         regfile_we_r <= 1;
-                        reg_dst      <= {micro_mov_dst - MICRO_MOV_AW}[2:0];
+                        reg_dst      <= micro_mov_dst[2:0];
                     end
                 end
                 else if(micro_mov_dst == MICRO_MOV_AL || micro_mov_dst == MICRO_MOV_AH)
                 begin
                     // Destination is byte register
                     regfile_we_r <= 1;
-                    reg_dst      <= {micro_mov_dst - MICRO_MOV_AL}[2:0];
+                    reg_dst      <= micro_mov_dst[2:0];
                     mov_dst_size <= 0;
                 end
                 else if(micro_mov_dst != MICRO_MOV_NONE)
@@ -1031,7 +1032,7 @@ module execution_unit
 
                         MICRO_MOV_AW, MICRO_MOV_CW, MICRO_MOV_DW, MICRO_MOV_BW,
                         MICRO_MOV_SP, MICRO_MOV_BP, MICRO_MOV_IX, MICRO_MOV_IY:
-                            alu_b <= registers[{micro_op[9:5] - MICRO_MOV_AW}[2:0]];
+                            alu_b <= registers[micro_op[9:5][2:0]];
 
                         MICRO_MOV_PC:
                             alu_b <= PC;
@@ -1081,13 +1082,13 @@ module execution_unit
 
                         MICRO_MOV_AW, MICRO_MOV_CW, MICRO_MOV_DW, MICRO_MOV_BW,
                         MICRO_MOV_SP, MICRO_MOV_BP, MICRO_MOV_IX, MICRO_MOV_IY:
-                            data_out <= registers[{micro_op[9:5] - MICRO_MOV_AW}[2:0]];
+                            data_out <= registers[micro_op[9:5][2:0]];
 
                         MICRO_MOV_DS1,
                         MICRO_MOV_PS,
                         MICRO_MOV_SS,
                         MICRO_MOV_DS0:
-                            data_out <= segment_registers[{micro_op[9:5] - MICRO_MOV_DS1}[1:0]];
+                            data_out <= segment_registers[micro_op[9:5][1:0]];
 
                         MICRO_MOV_PC:
                             data_out <= PC;
@@ -1130,7 +1131,7 @@ module execution_unit
                         begin
                             // Destination is byte register
                             regfile_we_r <= 1;
-                            reg_dst      <= {micro_op[9:5] - MICRO_MOV_AL}[2:0] << 2;
+                            reg_dst      <= micro_op[9:5][2:0];
                             mov_dst_size <= 0;
                         end
 
@@ -1139,7 +1140,7 @@ module execution_unit
                         begin
                             mov_dst_size <= 1;
                             regfile_we_r <= 1;
-                            reg_dst      <= {micro_op[9:5] - MICRO_MOV_AW}[2:0];
+                            reg_dst      <= micro_op[9:5][2:0];
                         end
 
                         MICRO_MOV_DS1,
@@ -1149,7 +1150,7 @@ module execution_unit
                         begin
                             mov_dst_size  <= 1;
                             sregfile_we_r <= 1;
-                            reg_dst       <= {micro_op[9:5] - MICRO_MOV_DS1}[2:0];
+                            reg_dst       <= micro_op[9:5][2:0];
                         end
 
                         MICRO_MOV_PC:
@@ -1161,8 +1162,8 @@ module execution_unit
 
                         MICRO_MOV_TMP:
                         begin
-                            temp_latch   <= data_in;
                             mov_dst_size <= 1;
+                            temp_latch   <= data_in;
                         end
 
                         // @todo: Segment registers.
@@ -1187,7 +1188,7 @@ module execution_unit
                         mov_dst_size <= byte_word_field;
                         regfile_we_r <= 1;
                     end
-                    else if(micro_op[9:5] >= MICRO_MOV_AW)
+                    else if(micro_op[9:5] >= MICRO_MOV_AW && micro_op[9:5] <= MICRO_MOV_PC)
                     begin
                         mov_dst_size <= 1;
 
@@ -1199,14 +1200,14 @@ module execution_unit
                         else
                         begin
                             regfile_we_r <= 1;
-                            reg_dst      <= {micro_op[9:5] - MICRO_MOV_AW}[2:0];
+                            reg_dst      <= micro_op[9:5][2:0];
                         end
                     end
                     else if(micro_op[9:5] == MICRO_MOV_AL || micro_op[9:5] == MICRO_MOV_AH)
                     begin
                         // Destination is byte register
                         regfile_we_r <= 1;
-                        reg_dst      <= {micro_op[9:5] - MICRO_MOV_AL}[2:0] << 2;
+                        reg_dst      <= micro_op[9:5][2:0];
                         mov_dst_size <= 0;
                     end
                     else
@@ -1241,16 +1242,16 @@ module execution_unit
                                 if(micro_mov_src == MICRO_MOV_AL || micro_mov_src == MICRO_MOV_AH)
                                 begin
                                     regfile_we_r_secondary <= 1;
-                                    regfile_write_id_secondary <= {micro_mov_src - MICRO_MOV_AL}[2:0] << 2;
+                                    regfile_write_id_secondary <= micro_mov_src[2:0];
                                     reg_tmp_bus <= (micro_mov_src == MICRO_MOV_AL)?
-                                        {8'd0, registers[{micro_mov_src - MICRO_MOV_AL}[2:0]][7:0]} + micro_bus_ind_offset:
-                                        {8'd0, registers[{micro_mov_src - MICRO_MOV_AL}[2:0]][15:8]} + micro_bus_ind_offset;
+                                        {8'd0, registers[micro_mov_src[2:0]][7:0]} + micro_bus_ind_offset:
+                                        {8'd0, registers[micro_mov_src[2:0]][15:8]} + micro_bus_ind_offset;
                                 end
                                 else if(micro_mov_src >= MICRO_MOV_AW && micro_mov_src <= MICRO_MOV_IY)
                                 begin
                                     regfile_we_r_secondary <= 1;
-                                    regfile_write_id_secondary <= {micro_mov_src - MICRO_MOV_AW}[2:0];
-                                    reg_tmp_bus <= registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] + micro_bus_ind_offset;
+                                    regfile_write_id_secondary <= micro_mov_src[2:0];
+                                    reg_tmp_bus <= registers[micro_mov_src[2:0]] + micro_bus_ind_offset;
                                 end
                                 else
                                     error <= `__LINE__;
@@ -1261,19 +1262,19 @@ module execution_unit
                                 if(micro_mov_src >= MICRO_MOV_AW && micro_mov_src <= MICRO_MOV_IY)
                                 begin
                                     regfile_we_r_secondary <= 1;
-                                    regfile_write_id_secondary <= {micro_mov_src - MICRO_MOV_AW}[2:0];
+                                    regfile_write_id_secondary <= micro_mov_src[2:0];
 
                                     if(byte_word_field == 1)
                                     begin
                                         reg_tmp_bus <= (control_flags[CTRL_FLAG_DIR] == 0)?
-                                            registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] + 2:
-                                            registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] - 2;
+                                            registers[micro_mov_src[2:0]] + 2:
+                                            registers[micro_mov_src[2:0]] - 2;
                                     end
                                     else
                                     begin
                                         reg_tmp_bus <= (control_flags[CTRL_FLAG_DIR] == 0)?
-                                            registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] + 1:
-                                            registers[{micro_mov_src - MICRO_MOV_AW}[2:0]] - 1;
+                                            registers[micro_mov_src[2:0]] + 1:
+                                            registers[micro_mov_src[2:0]] - 1;
                                     end
                                 end
                                 else
