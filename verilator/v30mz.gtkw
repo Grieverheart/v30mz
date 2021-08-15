@@ -1,20 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.107 (w)1999-2020 BSI
-[*] Sat Aug  7 19:32:43 2021
+[*] Sun Aug 15 21:43:29 2021
 [*]
-[dumpfile] "/Users/phnl320022254/Documents/FPGA/v30mz/verilator/sim.vcd"
-[dumpfile_mtime] "Sat Aug  7 19:31:08 2021"
-[dumpfile_size] 68839255
-[savefile] "/Users/phnl320022254/Documents/FPGA/v30mz/verilator/v30mz.gtkw"
-[timestart] 357736
-[size] 1792 1075
+[dumpfile] "/Users/nicktasios/Programming/fpga/v30mz/verilator/sim.vcd"
+[dumpfile_mtime] "Sun Aug 15 21:38:58 2021"
+[dumpfile_size] 62813959
+[savefile] "/Users/nicktasios/Programming/fpga/v30mz/verilator/v30mz.gtkw"
+[timestart] 358063
+[size] 1280 755
 [pos] -1 -1
-*-4.000000 357780 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-4.000000 358097 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] v30mz.
+[treeopen] v30mz.execution_unit_inst.
 [sst_width] 193
 [signals_width] 297
 [sst_expanded] 1
-[sst_vpaned_height] 443
+[sst_vpaned_height] 280
 @28
 TOP.clk
 @24

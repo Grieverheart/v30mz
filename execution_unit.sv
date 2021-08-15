@@ -187,12 +187,13 @@ module execution_unit
     reg [26:0] rom[0:511];
 
     localparam [2:0]
-        MICRO_TYPE_MISC = 3'b001,
+        MICRO_TYPE_MISC = 3'b100,
         MICRO_TYPE_BUS  = 3'b110,
         MICRO_TYPE_JMP  = 3'b101;
 
     localparam [1:0]
-        MICRO_TYPE_ALU = 2'b01;
+        MICRO_TYPE_ALU  = 2'b01,
+        MICRO_TYPE_SJMP = 2'b00;
 
     localparam [4:0]
         MICRO_MOV_NONE = 5'h00,
@@ -272,6 +273,9 @@ module execution_unit
         MICRO_JMP_XC = 3'd0,
         MICRO_JMP_UC = 3'd1,
         MICRO_JMP_NZ = 3'd2;
+
+    localparam
+        MICRO_SJMP_NREP = 3'd0;
 
     // @note:
     // Alu ops used by 8086 microcode.
@@ -353,13 +357,13 @@ module execution_unit
         // IN imm8 <- acc
         rom[8]  = {MICRO_TYPE_BUS, 5'd0, MICRO_BUS_IND_ZERO, MICRO_BUS_SEG_ZERO, MICRO_BUS_IO_READ, 2'b10, MICRO_MOV_AW, MICRO_MOV_IMM};
 
-        // @info: ALU: ttu??aaaaa (t = type, u = use alu result, a = alu op)
+        // @info: ALU: tt?????u??aaaaa (t = type, u = use alu result, a = alu op)
         // @note: If MICRO_ALU_USE_RESULT but src is memory, then don't write
         // result back this step but instead run the next microinstruction.
         rom[10] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_RM, MICRO_MOV_ONES};
         rom[11] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_ALU_R};
 
-        // @info: Long jump: tttcccdddd (t = type, c = jump condition, d = jump
+        // @info: Long jump: ttt?????cccdddd (t = type, c = jump condition, d = jump
         // destination)
         rom[12] = {MICRO_TYPE_JMP, 5'd0, MICRO_JMP_XC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
@@ -427,9 +431,18 @@ module execution_unit
         rom[48] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b01, MICRO_MOV_IX, MICRO_MOV_SP};
         rom[49] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_IY, MICRO_MOV_SP};
 
-        rom[50] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS0, MICRO_BUS_MEM_READ,  2'b00, MICRO_MOV_TMP, MICRO_MOV_IX};
-        rom[51] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS1, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_TMP, MICRO_MOV_IY};
-        rom[52] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_DEC, 2'b10, MICRO_MOV_CW, MICRO_MOV_ONES};
+        // short jump (tt?????cccddddd)
+        // @note: We are using a short jump to jump over the CW decrement when
+        // the repeat flag is not set. Alternatively, since we have several
+        // unused bits on ALU, we could use 1 bit to skip the instruction if
+        // repeat is not set. When repeat is active, it saves us
+        // 1 microinstruction.
+        // @note: Probably need to add an instruction of interrupt acknowledge
+        // at some point.
+        rom[50] = {MICRO_TYPE_SJMP, 5'd0, MICRO_SJMP_NREP, 5'sd2, 2'b00, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[51] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_DEC, 2'b00, MICRO_MOV_CW, MICRO_MOV_ONES};
+        rom[52] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS0, MICRO_BUS_MEM_READ,  2'b00, MICRO_MOV_TMP, MICRO_MOV_IX};
+        rom[53] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS1, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_TMP, MICRO_MOV_IY};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -724,7 +737,7 @@ module execution_unit
 
     reg branch_taken = 0;
     assign instruction_nearly_done = micro_op[10];
-    wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken && (!instruction_repeat || registers[1] > 0));
+    wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken && (!instruction_repeat || registers[1] == 0));
 
     wire [2:0] micro_op_type   = micro_op[26:24];
 
@@ -743,6 +756,10 @@ module execution_unit
 
     wire [2:0] micro_jmp_condition   = micro_op[18:16];
     wire [3:0] micro_jmp_destination = micro_op[15:12];
+
+    // short jump (tt?????cccddddd)
+    wire [2:0] micro_sjmp_condition = micro_op[19:17];
+    wire [4:0] micro_sjmp_offset    = micro_op[16:12];
 
     //assign queue_flush   = (micro_op_type == 3'b001) && (micro_misc_op_a == MICRO_MISC_OP_A_FLUSH);
     //assign queue_suspend = (micro_op_type == 3'b001) && (micro_misc_op_b == MICRO_MISC_OP_B_SUSP);
@@ -792,24 +809,7 @@ module execution_unit
                     begin
                         modrm = 8'b00000101;
 
-                        if(instruction_step == 0)
-                        begin
-                            bus_command     <= BUS_COMMAND_MEM_WRITE;
-                            bus_address     <= physical_address;
-                            data_out        <= registers[0];
-                            read_write_wait <= 1;
-                        end
-                        // @todo: Check if the second check is superfluous.
-                        else if(instruction_step == 1 && bus_command_done)
-                        begin
-                            reg_dst      <= 7;
-                            mov_from     <= READ_SRC_LATCH;
-                            mov_src_size <= 1;
-                            mov_dst_size <= 1;
-                            regfile_we_r <= 1;
-                            temp_latch   <= (control_flags[CTRL_FLAG_DIR] == 0)? registers[7] + 2: registers[7] - 2;
-                        end
-                        else if(instruction_step == 2 && instruction_repeat)
+                        if(instruction_step == 0 && instruction_repeat)
                         begin
                             // @todo: Do I need to do something with the Z-flag?
 
@@ -823,6 +823,23 @@ module execution_unit
                             mov_from     <= READ_SRC_ALU;
                             mov_src_size <= 1;
                             mov_dst_size <= 1;
+                        end
+                        else if(instruction_step == 1)
+                        begin
+                            bus_command     <= BUS_COMMAND_MEM_WRITE;
+                            bus_address     <= physical_address;
+                            data_out        <= registers[0];
+                            read_write_wait <= 1;
+                        end
+                        // @todo: Check if the second check is superfluous.
+                        else if(instruction_step == 2 && bus_command_done)
+                        begin
+                            reg_dst      <= 7;
+                            mov_from     <= READ_SRC_LATCH;
+                            mov_src_size <= 1;
+                            mov_dst_size <= 1;
+                            regfile_we_r <= 1;
+                            temp_latch   <= (control_flags[CTRL_FLAG_DIR] == 0)? registers[7] + 2: registers[7] - 2;
                         end
                     end
 
@@ -946,7 +963,12 @@ module execution_unit
                 end
                 else if(micro_mov_dst == MICRO_MOV_ADD)
                 begin
-                    // @todo @important: Do we need to handle prefix?
+                    // @todo @important: We need to handle segment override.
+                    // We could even add a flag for enabling/disabling
+                    // override?
+                    if(segment_override[2])
+                        error <= `__LINE__;
+
                     case(micro_bus_seg)
                         MICRO_BUS_SEG_ZERO:
                             bus_address <= {4'd0, mov_data} + micro_bus_disp_se;
@@ -1410,12 +1432,7 @@ module execution_unit
             else if(!read_write_wait || bus_command_done)
             begin
                 if(instruction_maybe_done)
-                begin
                     state <= next_state;
-                    microprogram_counter <= 0;
-                end
-                else
-                    microprogram_counter <= microprogram_counter + 1;
 
                 if(micro_mov_dst == MICRO_MOV_PC)
                     PC <= mov_data;
@@ -1428,6 +1445,15 @@ module execution_unit
                     PC <= pc_write_data;
 
                 segment_override <= 0;
+
+                // @todo: Check that we stop on time, or not
+                // a clock too late.
+                if(instruction_repeat && registers[1] != 0)
+                begin
+                    state <= STATE_EXECUTE;
+                end
+                else
+                    instruction_repeat <= 0;
 
                 if(translation_rom[opcode] == 0)
                 begin
@@ -1456,13 +1482,6 @@ module execution_unit
                             // @todo: Check if the second check is superfluous.
                             if(instruction_step != 1 || bus_command_done)
                                 instruction_step <= (instruction_step + 1) % 3;
-
-                            // @todo: Check that we stop on time, or not
-                            // a clock too late.
-                            if(instruction_repeat && registers[1] != 1)
-                                state <= STATE_EXECUTE;
-                            else
-                                instruction_repeat <= 0;
                         end
 
                         // Segment override prefix.
@@ -1476,6 +1495,10 @@ module execution_unit
                 end
                 else
                 begin
+                    if(micro_op[11])
+                        microprogram_counter <= 0;
+                    else
+                        microprogram_counter <= microprogram_counter + 1;
 
                     // Handle microcode commands
                     // @note: Not sure if I need to handle all these types of
@@ -1485,7 +1508,7 @@ module execution_unit
                     case(micro_op_type)
 
                         // misc
-                        3'b001:
+                        MICRO_TYPE_MISC:
                         begin
                             if(micro_misc_op_a == MICRO_MISC_OP_A_FLUSH)
                                 queue_flush <= 1;
@@ -1587,8 +1610,15 @@ module execution_unit
                         end
 
                         // short jump
-                        3'b000, 3'b100:
+                        3'b000, 3'b001:
                         begin
+                            if(micro_sjmp_condition == MICRO_SJMP_NREP && !instruction_repeat)
+                            begin
+                                microprogram_counter <= 0;
+                                microaddress <= microaddress + {{4{micro_sjmp_offset[4]}}, micro_sjmp_offset};
+                                branch_taken <= 1;
+                                state <= STATE_EXECUTE;
+                            end
                         end
 
                         // long call (@note: Will probably not implement)

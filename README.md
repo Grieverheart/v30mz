@@ -4,7 +4,7 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Implemented STMW, but gtkwave is having trouble with the waveform.
+Currently stuck at instruction 0x61, POP R, at 0x07DF.
 
 # TODO
 
