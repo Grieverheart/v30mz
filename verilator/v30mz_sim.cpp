@@ -1,4 +1,5 @@
 #include "Vv30mz.h"
+#include "v30mz_sim.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 #include <cstdio>
@@ -117,6 +118,9 @@ int main(int argc, char** argv, char** env)
         }
         else if(v30mz->bus_status == BUS_IO_READ)
         {
+            if(v30mz->address_out < sizeof(io_map))
+                printf("IN: %s\n", io_map[v30mz->address_out]);
+
             switch(v30mz->address_out)
             {
                 case 0xA0:
@@ -161,6 +165,9 @@ int main(int argc, char** argv, char** env)
         }
         else if(v30mz->bus_status == BUS_IO_WRITE)
         {
+            if(v30mz->address_out < sizeof(io_map))
+                printf("OUT: %s - 0x%x\n", io_map[v30mz->address_out], v30mz->data_out);
+
             switch(v30mz->address_out)
             {
                 case 0xBA:

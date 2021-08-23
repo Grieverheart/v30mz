@@ -421,6 +421,7 @@ module execution_unit
         rom[39] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
         rom[40] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_AW, MICRO_MOV_IMM};
 
+        // PUSH R
         rom[41] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_TMP, MICRO_MOV_SP};
         rom[42] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_AW, MICRO_MOV_SP};
         rom[43] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_CW, MICRO_MOV_SP};
@@ -443,6 +444,16 @@ module execution_unit
         rom[51] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_DEC, 2'b00, MICRO_MOV_CW, MICRO_MOV_ONES};
         rom[52] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS0, MICRO_BUS_MEM_READ,  2'b00, MICRO_MOV_TMP, MICRO_MOV_IX};
         rom[53] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS1, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_TMP, MICRO_MOV_IY};
+
+        // POP R
+        rom[54] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_IY, MICRO_MOV_SP};
+        rom[55] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_IX, MICRO_MOV_SP};
+        rom[56] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_BP, MICRO_MOV_SP};
+        rom[57] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_NONE, MICRO_MOV_SP};
+        rom[58] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_BW, MICRO_MOV_SP};
+        rom[59] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_DW, MICRO_MOV_SP};
+        rom[60] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b01, MICRO_MOV_CW, MICRO_MOV_SP};
+        rom[61] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b10, MICRO_MOV_AW, MICRO_MOV_SP};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -528,6 +539,7 @@ module execution_unit
             translation_rom[{7'b1010_100, i[0]}] = 9'd40;        // TEST imm -> acc
 
         translation_rom[8'b0110_0000] = 9'd41;                   // PUSH R
+        translation_rom[8'b0110_0001] = 9'd54;                   // POP R
 
         translation_rom[8'b1010_0101] = 9'd50;                   // MOVBK
 
@@ -844,6 +856,7 @@ module execution_unit
                     end
 
                     8'hFA,
+                    8'hFB,
                     8'hFC,
                     8'hF3:
                     begin
@@ -1124,6 +1137,8 @@ module execution_unit
                         MICRO_MOV_TMP:
                             data_out <= temp_reg;
 
+                        MICRO_MOV_NONE:;
+
                         default:
                         begin
                             data_out <= 16'hCAFE;
@@ -1242,16 +1257,19 @@ module execution_unit
                     begin
                         read_write_wait <= 1;
 
-                        case(micro_bus_op)
-                            MICRO_BUS_IO_WRITE:
-                                bus_command <= BUS_COMMAND_IO_WRITE;
-                            MICRO_BUS_IO_READ:
-                                bus_command <= BUS_COMMAND_IO_READ;
-                            MICRO_BUS_MEM_WRITE:
-                                bus_command <= BUS_COMMAND_MEM_WRITE;
-                            MICRO_BUS_MEM_READ:
-                                bus_command <= BUS_COMMAND_MEM_READ;
-                        endcase
+                        if(micro_mov_src != MICRO_MOV_NONE && micro_op[9:5] != MICRO_MOV_NONE)
+                        begin
+                            case(micro_bus_op)
+                                MICRO_BUS_IO_WRITE:
+                                    bus_command <= BUS_COMMAND_IO_WRITE;
+                                MICRO_BUS_IO_READ:
+                                    bus_command <= BUS_COMMAND_IO_READ;
+                                MICRO_BUS_MEM_WRITE:
+                                    bus_command <= BUS_COMMAND_MEM_WRITE;
+                                MICRO_BUS_MEM_READ:
+                                    bus_command <= BUS_COMMAND_MEM_READ;
+                            endcase
+                        end
 
                         case(micro_bus_ind)
                             MICRO_BUS_IND_ZERO:;
@@ -1472,6 +1490,9 @@ module execution_unit
 
                         8'hFA:
                             control_flags[CTRL_FLAG_IE] <= 0;
+
+                        8'hFB:
+                            control_flags[CTRL_FLAG_IE] <= 1;
 
                         8'hFC:
                             control_flags[CTRL_FLAG_DIR] <= 0;

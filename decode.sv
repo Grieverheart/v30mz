@@ -672,6 +672,7 @@ module decode
 
             8'b1111_0011, // REP
             8'b1111_1010, // DI
+            8'b1111_1011, // EI
             8'b1111_1100: // CLR1 DIR
             begin
                 need_modrm <= 0;
