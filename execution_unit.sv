@@ -8,12 +8,6 @@ enum [2:0]
     BUS_COMMAND_IO_WRITE  = 3'd4
 } BusCommand;
 
-`define assert(signal, value) \
-    if (signal !== value) begin \
-        $display("ASSERTION FAILED in %m: signal != value"); \
-        $finish; \
-    end
-
 module execution_unit
 (
     input clk,
@@ -83,6 +77,7 @@ module execution_unit
     reg [15:0] imm;
     reg [15:0] disp;
     reg [15:0] error;
+    reg [15:0] cerror = 0;
 
     wire has_prefix;
     wire need_modrm;
@@ -215,6 +210,10 @@ module execution_unit
         MICRO_MOV_ZERO  = 5'h06, // dst
         MICRO_MOV_ONES  = 5'h07, // dst
         MICRO_MOV_TMP   = 5'h09, // src/dst
+
+        //MICRO_MOV_TMPW  = 5'h09, // src/dst
+        //MICRO_MOV_TMPL  = 5'h0a, // src/dst
+        //MICRO_MOV_TMPH  = 5'h0b, // src/dst
 
         // all registers:
         MICRO_MOV_AL    = 5'h08,
@@ -377,60 +376,61 @@ module execution_unit
 
         // INC RM
         rom[17] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_RM, MICRO_MOV_ONES};
+        rom[18] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_ALU_R};
 
-        rom[18] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
-        rom[19] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_ALU_R};
+        rom[19] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
+        rom[20] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b10, MICRO_MOV_RM, MICRO_MOV_ALU_R};
 
         // BR near/short-label
-        rom[20] = {MICRO_TYPE_JMP, 5'd0, MICRO_JMP_UC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
-
         rom[21] = {MICRO_TYPE_JMP, 5'd0, MICRO_JMP_UC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
-        rom[22] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_R, MICRO_MOV_RM};
-        rom[23] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_RM, MICRO_MOV_R};
+        rom[22] = {MICRO_TYPE_JMP, 5'd0, MICRO_JMP_UC, 4'h0,                          2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+
+        rom[23] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_R, MICRO_MOV_RM};
+        rom[24] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_XI,  2'b10, MICRO_MOV_RM, MICRO_MOV_R};
 
         // CALL far-proc
         // @todo: convert these bus calls to the new convention.
-        rom[24] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_PS, MICRO_MOV_SP};
-        rom[25] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_PS, MICRO_MOV_IMM};
-        rom[26] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_PC, MICRO_MOV_SP};
-        rom[27] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_PC, MICRO_MOV_DISP};
+        rom[25] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_PS, MICRO_MOV_SP};
+        rom[26] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,   2'b00, MICRO_MOV_PS, MICRO_MOV_IMM};
+        rom[27] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_PC, MICRO_MOV_SP};
+        rom[28] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_PC, MICRO_MOV_DISP};
 
         // Just do a memory read request, and we'll take care of using the
         // data in data_in next step.
         // @todo: Is this possible or do we need e.g. latch the data to reg_tmp?
-        rom[28] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_RM};
-        rom[29] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_RM, MICRO_MOV_SP};
+        rom[29] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_RM};
+        rom[30] = {MICRO_TYPE_BUS, -5'sd2, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_RM, MICRO_MOV_SP};
 
         //rom[30] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_RM};
-        rom[31] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b10, MICRO_MOV_RM, MICRO_MOV_SP};
+        rom[32] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b10, MICRO_MOV_RM, MICRO_MOV_SP};
 
         // To return from call outside segment
         // PC ← (SP + 1, SP)
         // PS ← (SP + 3, SP + 2)
         // SP ← SP + 4
-        rom[32] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_NONE};
-        rom[33] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_PC, MICRO_MOV_SP};
-        rom[34] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_PS, MICRO_MOV_SP};
-        rom[35] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[33] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_SUSP, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[34] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_PC, MICRO_MOV_SP};
+        rom[35] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_PS, MICRO_MOV_SP};
+        rom[36] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_FLUSH,  2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
-        rom[36] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_DEC, 2'b00, MICRO_MOV_CW, MICRO_MOV_ONES};
-        rom[37] = {MICRO_TYPE_JMP, 5'd0, MICRO_JMP_NZ, 4'h0,                           2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[37] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_DEC, 2'b00, MICRO_MOV_CW, MICRO_MOV_ONES};
+        rom[38] = {MICRO_TYPE_JMP, 5'd0, MICRO_JMP_NZ, 4'h0,                           2'b10, MICRO_MOV_NONE, MICRO_MOV_NONE};
 
-        rom[38] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_R, MICRO_MOV_RM};
-        rom[39] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
-        rom[40] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_AW, MICRO_MOV_IMM};
+        rom[39] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_R, MICRO_MOV_RM};
+        rom[40] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_RM, MICRO_MOV_IMM};
+        rom[41] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_IGNORE_RESULT, 2'd0, MICRO_ALU_OP_AND, 2'b10, MICRO_MOV_AW, MICRO_MOV_IMM};
 
         // PUSH R
-        rom[41] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_TMP, MICRO_MOV_SP};
-        rom[42] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_AW, MICRO_MOV_SP};
-        rom[43] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_CW, MICRO_MOV_SP};
-        rom[44] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_DW, MICRO_MOV_SP};
-        rom[45] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BW, MICRO_MOV_SP};
-        rom[46] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_TMP, MICRO_MOV_SP};
-        rom[47] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BP, MICRO_MOV_SP};
-        rom[48] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b01, MICRO_MOV_IX, MICRO_MOV_SP};
-        rom[49] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_IY, MICRO_MOV_SP};
+        rom[42] = {MICRO_TYPE_MISC, 5'd0, MICRO_MISC_OP_B_NONE, MICRO_MISC_OP_A_NONE,  2'b00, MICRO_MOV_TMP, MICRO_MOV_SP};
+        rom[43] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_AW, MICRO_MOV_SP};
+        rom[44] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_CW, MICRO_MOV_SP};
+        rom[45] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_DW, MICRO_MOV_SP};
+        rom[46] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BW, MICRO_MOV_SP};
+        rom[47] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_TMP, MICRO_MOV_SP};
+        rom[48] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b00, MICRO_MOV_BP, MICRO_MOV_SP};
+        rom[49] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b01, MICRO_MOV_IX, MICRO_MOV_SP};
+        rom[50] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_DEC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_IY, MICRO_MOV_SP};
 
         // short jump (tt?????cccddddd)
         // @note: We are using a short jump to jump over the CW decrement when
@@ -440,20 +440,20 @@ module execution_unit
         // 1 microinstruction.
         // @note: Probably need to add an instruction of interrupt acknowledge
         // at some point.
-        rom[50] = {MICRO_TYPE_SJMP, 5'd0, MICRO_SJMP_NREP, 5'sd2, 2'b00, MICRO_MOV_NONE, MICRO_MOV_NONE};
-        rom[51] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_DEC, 2'b00, MICRO_MOV_CW, MICRO_MOV_ONES};
-        rom[52] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS0, MICRO_BUS_MEM_READ,  2'b00, MICRO_MOV_TMP, MICRO_MOV_IX};
-        rom[53] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS1, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_TMP, MICRO_MOV_IY};
+        rom[51] = {MICRO_TYPE_SJMP, 5'd0, MICRO_SJMP_NREP, 5'sd2, 2'b00, MICRO_MOV_NONE, MICRO_MOV_NONE};
+        rom[52] = {MICRO_TYPE_ALU, 5'd0, MICRO_ALU_USE_RESULT, 2'd0, MICRO_ALU_OP_DEC, 2'b00, MICRO_MOV_CW, MICRO_MOV_ONES};
+        rom[53] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS0, MICRO_BUS_MEM_READ,  2'b00, MICRO_MOV_TMP, MICRO_MOV_IX};
+        rom[54] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_BL, MICRO_BUS_SEG_DS1, MICRO_BUS_MEM_WRITE, 2'b10, MICRO_MOV_TMP, MICRO_MOV_IY};
 
         // POP R
-        rom[54] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_IY, MICRO_MOV_SP};
-        rom[55] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_IX, MICRO_MOV_SP};
-        rom[56] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_BP, MICRO_MOV_SP};
-        rom[57] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_NONE, MICRO_MOV_SP};
-        rom[58] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_BW, MICRO_MOV_SP};
-        rom[59] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_DW, MICRO_MOV_SP};
-        rom[60] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b01, MICRO_MOV_CW, MICRO_MOV_SP};
-        rom[61] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b10, MICRO_MOV_AW, MICRO_MOV_SP};
+        rom[55] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_IY, MICRO_MOV_SP};
+        rom[56] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_IX, MICRO_MOV_SP};
+        rom[57] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_BP, MICRO_MOV_SP};
+        rom[58] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_NONE, MICRO_MOV_SP};
+        rom[59] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_BW, MICRO_MOV_SP};
+        rom[60] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b00, MICRO_MOV_DW, MICRO_MOV_SP};
+        rom[61] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b01, MICRO_MOV_CW, MICRO_MOV_SP};
+        rom[62] = {MICRO_TYPE_BUS, 5'sd0, MICRO_BUS_IND_INC2, MICRO_BUS_SEG_SS, MICRO_BUS_MEM_READ, 2'b10, MICRO_MOV_AW, MICRO_MOV_SP};
 
         for (int i = 0; i < 256; i++)
             translation_rom[i] = 0;
@@ -497,51 +497,51 @@ module execution_unit
             translation_rom[{4'b0100, i[3:0]}] = 9'd17;          // INC/DEC reg16
 
         for (int i = 0; i < 4; i++)
-            translation_rom[{6'b1000_00, i[1:0]}] = 9'd18;       // ALU imm -> rm (Arithmetic family)
+            translation_rom[{6'b1000_00, i[1:0]}] = 9'd19;       // ALU imm -> rm (Arithmetic family)
 
         for (int i = 0; i < 2; i++)
-            translation_rom[{7'b1100_000, i[0]}] = 9'd18;        // ALU imm -> rm (Shift family)
+            translation_rom[{7'b1100_000, i[0]}] = 9'd19;        // ALU imm -> rm (Shift family)
 
         for (int i = 0; i < 16; i++)
-            translation_rom[{2'b00, i[3:1], 2'b01, i[0]}] = 9'd22; // ALU rm -> r
+            translation_rom[{2'b00, i[3:1], 2'b01, i[0]}] = 9'd23; // ALU rm -> r
 
         for (int i = 0; i < 16; i++)
-            translation_rom[{2'b00, i[3:1], 2'b00, i[0]}] = 9'd23; // ALU r  -> rm
+            translation_rom[{2'b00, i[3:1], 2'b00, i[0]}] = 9'd24; // ALU r  -> rm
 
-        translation_rom[8'b1110_1001] = 9'd20;                   // BR near-label
-        translation_rom[8'b1110_1011] = 9'd20;                   // BR short-label
+        translation_rom[8'b1110_1001] = 9'd21;                   // BR near-label
+        translation_rom[8'b1110_1011] = 9'd21;                   // BR short-label
 
-        translation_rom[8'b1001_1010] = 9'd24;                   // CALL far-proc
-
-        for (int i = 0; i < 4; i++)
-            translation_rom[{3'b000, i[1:0], 3'b110}] = 9'd29;   // PUSH sreg
-
-        for (int i = 0; i < 8; i++)
-            translation_rom[{5'b0101_0, i[2:0]}] = 9'd29;        // PUSH reg16
+        translation_rom[8'b1001_1010] = 9'd25;                   // CALL far-proc
 
         for (int i = 0; i < 4; i++)
-            translation_rom[{3'b000, i[1:0], 3'b111}] = 9'd31;   // POP sreg
+            translation_rom[{3'b000, i[1:0], 3'b110}] = 9'd30;   // PUSH sreg
 
         for (int i = 0; i < 8; i++)
-            translation_rom[{5'b0101_1, i[2:0]}] = 9'd31;        // POP reg16
+            translation_rom[{5'b0101_0, i[2:0]}] = 9'd30;        // PUSH reg16
 
-        translation_rom[8'b1100_1011] = 9'd32;                   // RET (segment-external call)
+        for (int i = 0; i < 4; i++)
+            translation_rom[{3'b000, i[1:0], 3'b111}] = 9'd32;   // POP sreg
 
-        translation_rom[8'b1110_0010] = 9'd36;                   // DBNZ loop
+        for (int i = 0; i < 8; i++)
+            translation_rom[{5'b0101_1, i[2:0]}] = 9'd32;        // POP reg16
+
+        translation_rom[8'b1100_1011] = 9'd33;                   // RET (segment-external call)
+
+        translation_rom[8'b1110_0010] = 9'd37;                   // DBNZ loop
 
         for (int i = 0; i < 2; i++)
-            translation_rom[{7'b1000_010, i[0]}] = 9'd38;        // TEST rm -> r
+            translation_rom[{7'b1000_010, i[0]}] = 9'd39;        // TEST rm -> r
 
         for (int i = 0; i < 2; i++)
-            translation_rom[{7'b1111_011, i[0]}] = 9'd39;        // TEST imm -> rm
+            translation_rom[{7'b1111_011, i[0]}] = 9'd40;        // TEST imm -> rm
 
         for (int i = 0; i < 2; i++)
-            translation_rom[{7'b1010_100, i[0]}] = 9'd40;        // TEST imm -> acc
+            translation_rom[{7'b1010_100, i[0]}] = 9'd41;        // TEST imm -> acc
 
-        translation_rom[8'b0110_0000] = 9'd41;                   // PUSH R
-        translation_rom[8'b0110_0001] = 9'd54;                   // POP R
+        translation_rom[8'b0110_0000] = 9'd42;                   // PUSH R
+        translation_rom[8'b0110_0001] = 9'd55;                   // POP R
 
-        translation_rom[8'b1010_0101] = 9'd50;                   // MOVBK
+        translation_rom[8'b1010_0101] = 9'd51;                   // MOVBK
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -749,7 +749,7 @@ module execution_unit
 
     reg branch_taken = 0;
     assign instruction_nearly_done = micro_op[10];
-    wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken && (!instruction_repeat || registers[1] == 0));
+    wire instruction_maybe_done = (micro_op[11] && !alu_mem_wb && !branch_taken);
 
     wire [2:0] micro_op_type   = micro_op[26:24];
 
@@ -811,7 +811,9 @@ module execution_unit
         // * Handle move command *
         if(state == STATE_EXECUTE)
         begin
-            if(translation_rom[opcode] == 0)
+            // @note: For Group 2 instructions we set the microaddress
+            // manually.
+            if(translation_rom[opcode] == 0 && opcode[7:1] != 7'h7F)
             begin
                 case(opcode)
                     8'hAA:
@@ -855,10 +857,7 @@ module execution_unit
                         end
                     end
 
-                    8'hFA,
-                    8'hFB,
-                    8'hFC,
-                    8'hF3:
+                    8'hFA, 8'hFB, 8'hFC, 8'hF3:
                     begin
                     end
 
@@ -1421,6 +1420,20 @@ module execution_unit
                 if(state == STATE_OPCODE_READ)
                     microaddress  <= translation_rom[opcode];
 
+                // Handle Group 2 instructions
+                if(state == STATE_MODRM_READ && (opcode[7:1] == 7'h7F))
+                begin
+                    case(regm)
+                        3'b000, 3'b001: // INC/DEC
+                            microaddress <= 17; // @todo: Make address robust.
+
+                        // @Implement other instructions.
+
+                        default:
+                            cerror <= `__LINE__;
+                    endcase
+                end
+
                 // @note: I thought there might be a problem here using
                 // sequential logic: If the queue is empty on this cycle but
                 // receiving data the next cycle, queue_empty will be false
@@ -1449,7 +1462,7 @@ module execution_unit
             // STATE_EXECUTE
             else if(!read_write_wait || bus_command_done)
             begin
-                if(instruction_maybe_done)
+                if(instruction_maybe_done && (!instruction_repeat || registers[1] == 0))
                     state <= next_state;
 
                 if(micro_mov_dst == MICRO_MOV_PC)
@@ -1473,7 +1486,7 @@ module execution_unit
                 else
                     instruction_repeat <= 0;
 
-                if(translation_rom[opcode] == 0)
+                if(translation_rom[opcode] == 0 && opcode[7:1] != 7'h7F)
                 begin
                     case(opcode)
                         8'hF3:
@@ -1516,7 +1529,7 @@ module execution_unit
                 end
                 else
                 begin
-                    if(micro_op[11])
+                    if(instruction_maybe_done)
                         microprogram_counter <= 0;
                     else
                         microprogram_counter <= microprogram_counter + 1;

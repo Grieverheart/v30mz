@@ -47,7 +47,7 @@ instruction types:
 1 == select ALU operation and input register     01ooooossn  o == operation  s == source  n == NX bit
 4 == miscellaneous                               100xxxxyyy
 5 == long (conditional or unconditional) jump    101cccdddd  c == condition  d == detination
-6 == bus operations                              110dixssuu  d == direction  p == IRQ acknowledge  x == unused?  s == segment  uu == IND update
+6 == bus operations                              110dixssuu  d == direction  i == IRQ acknowledge  x == unused?  s == segment  uu == IND update
 7 == long (conditional or unconditional) call    111cccdddd  c == condition  d == detination
 
 conditions for either long or short jump:

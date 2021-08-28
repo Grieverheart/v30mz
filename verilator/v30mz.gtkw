@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.107 (w)1999-2020 BSI
-[*] Sun Aug 15 21:43:29 2021
+[*] Tue Aug 24 22:19:34 2021
 [*]
 [dumpfile] "/Users/nicktasios/Programming/fpga/v30mz/verilator/sim.vcd"
-[dumpfile_mtime] "Sun Aug 15 21:38:58 2021"
-[dumpfile_size] 62813959
+[dumpfile_mtime] "Tue Aug 24 22:17:22 2021"
+[dumpfile_size] 67093072
 [savefile] "/Users/nicktasios/Programming/fpga/v30mz/verilator/v30mz.gtkw"
-[timestart] 358063
+[timestart] 362852
 [size] 1280 755
 [pos] -1 -1
-*-4.000000 358097 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-4.000000 362893 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] v30mz.
 [treeopen] v30mz.execution_unit_inst.
 [sst_width] 193
@@ -20,6 +20,7 @@
 TOP.clk
 @24
 v30mz.execution_unit_inst.error[15:0]
+v30mz.execution_unit_inst.cerror[15:0]
 @28
 v30mz.execution_unit_inst.decode_inst.instruction_not_decoded
 @22
@@ -55,7 +56,7 @@ v30mz.execution_unit_inst.alu_a[15:0]
 -group_end
 @22
 v30mz.execution_unit_inst.alu_b[15:0]
-@420
+@421
 v30mz.execution_unit_inst.alu_r[15:0]
 @c00022
 v30mz.execution_unit_inst.alu_flags_r[5:0]
@@ -102,6 +103,15 @@ v30mz.execution_unit_inst.segment_registers(1)[15:0]
 v30mz.execution_unit_inst.segment_registers(2)[15:0]
 v30mz.execution_unit_inst.segment_registers(3)[15:0]
 v30mz.execution_unit_inst.data_out[15:0]
-v30mz.execution_unit_inst.data_in[15:0]
+v30mz.execution_unit_inst.bus_address[19:0]
+@c00022
+v30mz.execution_unit_inst.control_flags[3:0]
+@28
+(0)v30mz.execution_unit_inst.control_flags[3:0]
+(1)v30mz.execution_unit_inst.control_flags[3:0]
+(2)v30mz.execution_unit_inst.control_flags[3:0]
+(3)v30mz.execution_unit_inst.control_flags[3:0]
+@1401200
+-group_end
 [pattern_trace] 1
 [pattern_trace] 0

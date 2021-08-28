@@ -683,6 +683,17 @@ module decode
                 src        <= 0;
             end
 
+            8'b1111_111?:
+            begin
+                need_modrm <= 1'b1;
+                need_disp <= need_disp_mod;
+                need_imm <= 1'b0;
+                imm_size <= 1'b0;
+
+                src <= { 1'b0, rm };
+                dst <= 4'b0;
+            end
+
             // @todo ...
 
             default:
