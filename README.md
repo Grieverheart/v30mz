@@ -4,11 +4,10 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Currently stuck at rep instruction 0xA4 MOVBKB.
+Something weird happens after the long jump at 0x400. The queue contains the wrong instruction? The bus address also seems wrong.
 
 # TODO
 
-* We need a way to tell if the bus operation is byte or word, or if it should e.g. check the byte_word_field. This requires 2 additional bits. Alternatively, for instructions with a W field, we can have two separate microprograms. This requires the addition of MICRO_MOV_TMPW, MICRO_MOV_TMPL, MICRO_MOV_TMPH, which is probably a good idea anyway. Otherwise we can build some random logic for finding out if the instruction actually has a 'W' bit, otherwise set to 1?
 * Can we implement STMW in microcode?
 * Implement alu constant (source?) operand in the unused 5 bits of the microinstruction. But 5 bits are not really enough for signed 16 constant. We do have another 2 unused microinstruction bits, although in the future we might need to use one for enabling/disabling flag updating.
 * Need to implement upper byte enable (UBE) bit when writing to bus.

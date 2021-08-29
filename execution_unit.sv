@@ -541,7 +541,8 @@ module execution_unit
         translation_rom[8'b0110_0000] = 9'd42;                   // PUSH R
         translation_rom[8'b0110_0001] = 9'd55;                   // POP R
 
-        translation_rom[8'b1010_0101] = 9'd51;                   // MOVBK
+        for (int i = 0; i < 2; i++)
+            translation_rom[{7'b1010_010, i[0]}] = 9'd51;       // MOVBK(B/W)
 
         for (int i = 0; i < 16; i++)
             jump_table[i] = 9'd0;
@@ -1255,6 +1256,8 @@ module execution_unit
                     MICRO_TYPE_BUS:
                     begin
                         read_write_wait <= 1;
+                        // @todo: use byte_word_field for bus_upper_byte_enable.
+                        // Perhaps just assign it to it.
 
                         if(micro_mov_src != MICRO_MOV_NONE && micro_op[9:5] != MICRO_MOV_NONE)
                         begin

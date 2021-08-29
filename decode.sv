@@ -48,7 +48,7 @@ module decode
     output reg [3:0] dst,
 
     // W
-    output byte_word_field
+    output reg byte_word_field
 );
 
     wire [2:0] dstm, srcm;
@@ -72,8 +72,10 @@ module decode
         opcode == 8'hEA
     ) || (need_modrm && disp_size_mod);
 
-    assign byte_word_field =
-        (opcode[7:4] != 4'b1011 && opcode[7:2] != 6'b100011)? opcode[0]: opcode[3];
+    //// @todo: Set the byte_word_field to 1 for opcodes that don't use this
+    //// field.
+    //assign byte_word_field =
+    //    (opcode[7:4] != 4'b1011 && opcode[7:2] != 6'b100011)? opcode[0]: opcode[3];
 
     /* verilator lint_off COMBDLY  */
     always_comb
@@ -82,6 +84,7 @@ module decode
         casez(opcode)
             8'b0000_00??: // ADD R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -92,6 +95,7 @@ module decode
 
             8'b0000_010?: // ADD ACC IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -102,6 +106,7 @@ module decode
 
             8'b000?_?110: // PUSH sreg
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -112,6 +117,7 @@ module decode
 
             8'b000?_?111: // POP sreg
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -122,6 +128,7 @@ module decode
 
             8'b0000_10??: // OR R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -132,6 +139,7 @@ module decode
 
             8'b0000_110?: // OR ACC IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -140,8 +148,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b0001_00??: // ADC R/M R
+            8'b0001_00??: // ADDC R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -150,8 +159,9 @@ module decode
                 src        <= { 1'b0, srcm };
             end
 
-            8'b0001_010?: // ADC ACC IMM
+            8'b0001_010?: // ADDC ACC IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -160,8 +170,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b0001_10??: // SBB R/M R
+            8'b0001_10??: // SUBC R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -172,6 +183,7 @@ module decode
 
             8'b0001_110?: // SBB ACC IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -182,6 +194,7 @@ module decode
 
             8'b0010_00??: // AND R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -192,6 +205,7 @@ module decode
 
             8'b0010_010?: // AND ACC IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -202,6 +216,7 @@ module decode
 
             8'b001?_?110: // Segment override prefix
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -212,6 +227,7 @@ module decode
 
             8'b0010_10??: // SUB R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -222,6 +238,7 @@ module decode
 
             8'b0010_110?: // SUB ACC IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -232,6 +249,7 @@ module decode
 
             8'b0011_00??: // XOR R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -242,6 +260,7 @@ module decode
 
             8'b0011_010?: // XOR ACC IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -252,6 +271,7 @@ module decode
 
             8'b0011_10??: // CMP R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -262,6 +282,7 @@ module decode
 
             8'b0011_110?: // CMP ACC IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -270,8 +291,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b001?_?111: // Unpacked decimal adjustment
+            8'b001?_?111: // ADJ4A, ADJBA, ADJ4S, ADJBS (Unpacked decimal adjustment)
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -282,6 +304,7 @@ module decode
 
             8'b0100_0???: // INC reg16
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -292,6 +315,7 @@ module decode
 
             8'b0100_1???: // DEC reg16
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -302,6 +326,7 @@ module decode
 
             8'b0101_0???: // PUSH reg16
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -312,6 +337,7 @@ module decode
 
             8'b0101_1???: // POP reg16
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -322,6 +348,7 @@ module decode
 
             8'b0110_0000: // PUSH R
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -332,6 +359,7 @@ module decode
             
             8'b0110_0001: // POP R
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -342,6 +370,7 @@ module decode
 
             8'b0111_????: // Branch short-label
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 1;
                 need_imm   <= 0;
@@ -350,8 +379,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b1000_00??: // ADD/OR/ADC/SBB/AND/SUB/XOR/CMP R/M IMM
+            8'b1000_00??: // ADD/OR/ADDC/SUBC/AND/SUB/XOR/CMP R/M IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 1;
@@ -362,6 +392,7 @@ module decode
 
             8'b1000_010?: // TEST R/M R (@note: zet-cpu has dstm and srcm switched around here)
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -372,6 +403,7 @@ module decode
 
             8'b1000_011?: // XCHG R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -382,6 +414,7 @@ module decode
 
             8'b1000_10??: // MOV R/M R
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_imm   <= 0;
                 imm_size   <= 0;
@@ -392,6 +425,7 @@ module decode
 
             8'b1000_11?0: // MOV R/M sreg
             begin
+                byte_word_field <= 1;
                 need_modrm <= 1;
                 need_imm   <= 0;
                 imm_size   <= 0;
@@ -402,6 +436,7 @@ module decode
 
             8'b1000_1101: // LDEA R M (@todo: missing mod=11)
             begin
+                byte_word_field <= 1;
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -412,6 +447,7 @@ module decode
 
             8'b1000_1111: // POP R16/M16
             begin
+                byte_word_field <= 1;
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -422,6 +458,7 @@ module decode
 
             8'b1001_0???: // NOP/XCHG ACC
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -430,8 +467,9 @@ module decode
                 src        <= {1'b0, opcode[2:0]};
             end
 
-            8'b1001_100?: // CBW/CWD
+            8'b1001_100?: // CVTBW/CVTWL
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -442,6 +480,7 @@ module decode
 
             8'b1001_1010: // CALL far-proc
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 1;
                 need_imm   <= 1;
@@ -452,6 +491,7 @@ module decode
 
             8'b1001_1011: // WAIT
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -460,8 +500,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b1001_11??: // PUSHF/POPF/SAHF/LAHF
+            8'b1001_11??: // PUSH PSW/POP PSW/MOV AH, PSW/MOV PSW, AH
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -472,6 +513,7 @@ module decode
 
             8'b1010_00??: // MOV M ACC
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 1;
                 need_imm   <= 0;
@@ -480,8 +522,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b1010_01??: // MOVS/CMPS
+            8'b1010_01??: // MOVBK/CMPBK
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -492,6 +535,7 @@ module decode
 
             8'b1010_100?: // TEST ACC IMM
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -502,6 +546,7 @@ module decode
 
             8'b1010_101?: // STM(B/W)
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -510,8 +555,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b1010_110?: // LODS
+            8'b1010_110?: // LDM(B/W)
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -520,8 +566,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b1010_111?: // SCAS
+            8'b1010_111?: // CMP(B/W)
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -532,6 +579,7 @@ module decode
 
             8'b1011_????: // MOV R IMM
             begin
+                byte_word_field <= opcode[3];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -542,6 +590,7 @@ module decode
 
             8'b1100_000?: // ROR/ROL/RCR/RCL/SAL/SHL/SAR/SHR RM IMM8
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 1;
@@ -552,6 +601,7 @@ module decode
 
             8'b1100_0010: // RET pop-value (segment-internal call)
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -562,6 +612,7 @@ module decode
 
             8'b1100_0011: // RET (segment-internal call)
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -570,8 +621,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b1100_010?: // LES/LDS R16 M16
+            8'b1100_010?: // MOV DS1/DS0
             begin
+                byte_word_field <= 1;
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 0;
@@ -582,6 +634,7 @@ module decode
 
             8'b1100_011?: // mov: i->m (or i->r non-standard)
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 1;
@@ -592,6 +645,7 @@ module decode
 
             8'b1100_1000: // PREPARE (ENTER)
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 1;
@@ -602,6 +656,7 @@ module decode
             
             8'b1100_1011: // ret far
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -612,6 +667,7 @@ module decode
 
             8'b1110_0010: // DBNZ loop
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 1;
                 need_imm   <= 0;
@@ -622,6 +678,7 @@ module decode
 
             8'b1110_1001: // BR near-label
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 1;
                 need_imm   <= 0;
@@ -632,6 +689,7 @@ module decode
 
             8'b1110_1011: // BR short-label
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 1;
                 need_imm   <= 0;
@@ -642,6 +700,7 @@ module decode
 
             8'b1110_1010: // BR far-label
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 1;
                 need_imm   <= 1;
@@ -652,6 +711,7 @@ module decode
 
             8'b1110_01??: // IN/OUT acc -> (i8)
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 1;
@@ -662,6 +722,7 @@ module decode
 
             8'b1101_00??: // ROR/ROL/RCR/RCL/SAL/SHL/SAR/SHR 1/CL -> rm
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1'b1;
                 need_disp  <= need_disp_mod;
                 need_imm   <= 1'b0;
@@ -675,6 +736,7 @@ module decode
             8'b1111_1011, // EI
             8'b1111_1100: // CLR1 DIR
             begin
+                byte_word_field <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
                 need_imm   <= 0;
@@ -683,8 +745,9 @@ module decode
                 src        <= 0;
             end
 
-            8'b1111_111?:
+            8'b1111_111?: // Group 2
             begin
+                byte_word_field <= opcode[0];
                 need_modrm <= 1'b1;
                 need_disp <= need_disp_mod;
                 need_imm <= 1'b0;
@@ -698,6 +761,7 @@ module decode
 
             default:
             begin
+                byte_word_field <= 1;
                 instruction_not_decoded <= 1;
                 need_modrm <= 0;
                 need_disp  <= 0;
