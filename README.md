@@ -4,7 +4,7 @@ My first HDL project, a V30MZ core written in SystemVerilog.
 
 # Progress
 
-Something weird happens after the long jump at 0x400. The queue contains the wrong instruction? The bus address also seems wrong.
+Instruction 0xA4 at 0x22A does a block move of memory and then jumps to that memory location. Investigate if the correct data is transferred (i.e. correct segment registers) and decode these instructions.
 
 # TODO
 

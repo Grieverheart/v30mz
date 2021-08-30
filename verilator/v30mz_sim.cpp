@@ -119,7 +119,7 @@ int main(int argc, char** argv, char** env)
         else if(v30mz->bus_status == BUS_IO_READ)
         {
             if(v30mz->address_out < sizeof(io_map))
-                printf("IN: %s\n", io_map[v30mz->address_out]);
+                printf("0x%04x IN: %s\n", v30mz->v30mz__DOT__PC, io_map[v30mz->address_out]);
 
             switch(v30mz->address_out)
             {
@@ -166,7 +166,7 @@ int main(int argc, char** argv, char** env)
         else if(v30mz->bus_status == BUS_IO_WRITE)
         {
             if(v30mz->address_out < sizeof(io_map))
-                printf("OUT: %s - 0x%x\n", io_map[v30mz->address_out], v30mz->data_out);
+                printf("0x%04x OUT: %s - 0x%x\n", v30mz->v30mz__DOT__PC, io_map[v30mz->address_out], v30mz->data_out);
 
             switch(v30mz->address_out)
             {

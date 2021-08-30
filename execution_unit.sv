@@ -1072,6 +1072,8 @@ module execution_unit
                         MICRO_MOV_PC:
                             alu_b <= PC;
 
+                        // @todo: Can MICRO_MOV_TMP be a destination register?
+
                         default:
                         begin
                             alu_b <= 16'hCAFE;
@@ -1471,7 +1473,8 @@ module execution_unit
                 if(micro_mov_dst == MICRO_MOV_PC)
                     PC <= mov_data;
 
-                if(micro_mov_dst == MICRO_MOV_TMP)
+                // @note: In case of bus or alu operation.
+                if(micro_mov_dst == MICRO_MOV_TMP || (micro_bus_read && micro_op[9:5] == MICRO_MOV_TMP))
                     temp_reg <= temp_latch;
 
                 // @todo: Do the same for alu writeback?
